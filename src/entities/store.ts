@@ -47,6 +47,7 @@ interface EntityStore {
   // Mutations — generic
   removeEntity: (id: EntityId) => void;
   reparent: (id: EntityId, newParentId: EntityId | null) => void;
+  moveTo: (id: EntityId, newParentId: EntityId | null, index: number) => void;
 
   // Trip
   setTrip: (trip: Trip) => void;
@@ -145,6 +146,52 @@ export const useEntityStore = create<EntityStore>((set, get) => ({
         parentId: newParentId,
         sortOrder: getNextSortOrder(next, newParentId, entity.type),
       } as Entity);
+      return { entities: next };
+    });
+  },
+
+  moveTo: (id, newParentId, index) => {
+    set((state) => {
+      const entity = state.entities.get(id);
+      if (!entity) return state;
+
+      // Prevent moving into self
+      if (newParentId === id) return state;
+
+      // Prevent moving into own descendants
+      if (newParentId !== null) {
+        let cursor = state.entities.get(newParentId);
+        while (cursor) {
+          if (cursor.id === id) return state;
+          cursor = cursor.parentId ? state.entities.get(cursor.parentId) : undefined;
+        }
+      }
+
+      // Get siblings at target parent, excluding the entity being moved
+      const siblings: Entity[] = [];
+      for (const e of state.entities.values()) {
+        if (e.type === entity.type && e.parentId === newParentId && e.id !== id) {
+          siblings.push(e);
+        }
+      }
+      siblings.sort((a, b) => a.sortOrder - b.sortOrder);
+
+      // Insert at the specified index
+      const clampedIndex = Math.max(0, Math.min(index, siblings.length));
+      siblings.splice(clampedIndex, 0, entity);
+
+      // Renumber all siblings and update the moved entity's parentId
+      const next = new Map(state.entities);
+      for (let i = 0; i < siblings.length; i++) {
+        const sibling = siblings[i];
+        const current = next.get(sibling.id)!;
+        if (sibling.id === id) {
+          next.set(id, { ...current, parentId: newParentId, sortOrder: i } as Entity);
+        } else if (current.sortOrder !== i) {
+          next.set(sibling.id, { ...current, sortOrder: i } as Entity);
+        }
+      }
+
       return { entities: next };
     });
   },

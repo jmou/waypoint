@@ -8,7 +8,7 @@
  * Supports:
  * - Expand/collapse via ▶ toggle
  * - Selection + highlighting with consistent visual treatment
- * - Drag-and-drop reparenting (calls store.reparent)
+ * - Drag-and-drop reparenting (drop on item) and reordering (drop between items)
  * - Inline add row at each hierarchy level (calls store.addPlace)
  */
 
@@ -31,6 +31,49 @@ const C = {
   highlightPlaceBg: "rgba(163,61,34,0.06)",
   highlightPlaceBorder: "rgba(163,61,34,0.22)",
 };
+
+// ─── Drop zone between items ───
+
+function DropZone({ parentId, index, depth, onMoveTo }: {
+  parentId: EntityId | null;
+  index: number;
+  depth: number;
+  onMoveTo: (draggedId: string, parentId: EntityId | null, index: number) => void;
+}) {
+  const [active, setActive] = useState(false);
+
+  return (
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = "move";
+        setActive(true);
+      }}
+      onDragLeave={() => setActive(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setActive(false);
+        const draggedId = e.dataTransfer.getData("text/plain");
+        if (draggedId) {
+          onMoveTo(draggedId, parentId, index);
+        }
+      }}
+      style={{
+        marginLeft: 26 + depth * 18,
+        marginRight: 16,
+      }}
+    >
+      <div style={{
+        height: 4,
+        borderRadius: 1,
+        background: active ? C.accent : "transparent",
+        transition: "background 0.12s",
+      }} />
+    </div>
+  );
+}
 
 // ─── Inline add row ───
 
@@ -110,13 +153,14 @@ function InlineAddRow({ placeholder, onAdd, depth }: {
 
 // ─── Place tree node ───
 
-function PlaceNode({ place, depth, entities, selected, highlighted, onDrop }: {
+function PlaceNode({ place, depth, entities, selected, highlighted, onDrop, onMoveTo }: {
   place: Place;
   depth: number;
   entities: Map<string, any>;
   selected: Set<string>;
   highlighted: Set<string>;
   onDrop: (draggedId: string, targetId: string) => void;
+  onMoveTo: (draggedId: string, parentId: EntityId | null, index: number) => void;
 }) {
   const [open, setOpen] = useState(true);
   const [dragOver, setDragOver] = useState(false);
@@ -132,11 +176,6 @@ function PlaceNode({ place, depth, entities, selected, highlighted, onDrop }: {
   return (
     <>
       <div
-        draggable
-        onDragStart={(e) => {
-          e.dataTransfer.setData("text/plain", place.id);
-          e.dataTransfer.effectAllowed = "move";
-        }}
         onDragOver={(e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
@@ -174,13 +213,18 @@ function PlaceNode({ place, depth, entities, selected, highlighted, onDrop }: {
             </span>
           )}
           <div
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData("text/plain", place.id);
+              e.dataTransfer.effectAllowed = "move";
+            }}
             onClick={(e) => handleClick(place.id, e)}
             style={{
               display: "flex",
               alignItems: "center",
               gap: 6,
               padding: "5px 10px",
-              margin: "1px 8px",
+              margin: "0 8px",
               marginLeft: hasKids ? 8 : 26,
               borderRadius: 6,
               cursor: "pointer",
@@ -223,25 +267,29 @@ function PlaceNode({ place, depth, entities, selected, highlighted, onDrop }: {
           </div>
         </div>
       </div>
-      {open && children.map((child) => (
-        <PlaceNode
-          key={child.id}
-          place={child}
-          depth={depth + 1}
-          entities={entities}
-          selected={selected}
-          highlighted={highlighted}
-          onDrop={onDrop}
-        />
-      ))}
       {open && hasKids && (
-        <div style={{ paddingLeft: (depth + 1) * 18 }}>
+        <>
+          <DropZone parentId={place.id} index={0} depth={depth + 1} onMoveTo={onMoveTo} />
+          {children.map((child, i) => (
+            <React.Fragment key={child.id}>
+              <PlaceNode
+                place={child}
+                depth={depth + 1}
+                entities={entities}
+                selected={selected}
+                highlighted={highlighted}
+                onDrop={onDrop}
+                onMoveTo={onMoveTo}
+              />
+              <DropZone parentId={place.id} index={i + 1} depth={depth + 1} onMoveTo={onMoveTo} />
+            </React.Fragment>
+          ))}
           <InlineAddRow
             placeholder="Add place..."
             depth={0}
             onAdd={(name) => addPlace(name, place.id)}
           />
-        </div>
+        </>
       )}
     </>
   );
@@ -253,6 +301,7 @@ export function PlacesView() {
   const entities = useEntityStore((s) => s.entities);
   const selected = useSelectionStore((s) => s.selected);
   const reparent = useEntityStore((s) => s.reparent);
+  const moveTo = useEntityStore((s) => s.moveTo);
   const addPlace = useEntityStore((s) => s.addPlace);
 
   const highlighted = computeHighlighted(entities, selected);
@@ -262,18 +311,32 @@ export function PlacesView() {
     reparent(draggedId, targetId);
   }, [reparent]);
 
+  const handleMoveTo = useCallback((draggedId: string, parentId: EntityId | null, index: number) => {
+    // Adjust for off-by-one when dropping below self in same parent
+    const dragged = entities.get(draggedId);
+    if (dragged && dragged.parentId === parentId && dragged.sortOrder < index) {
+      moveTo(draggedId, parentId, index - 1);
+    } else {
+      moveTo(draggedId, parentId, index);
+    }
+  }, [moveTo, entities]);
+
   return (
     <div style={{ overflow: "auto", height: "100%", paddingTop: 4, paddingBottom: 16 }}>
-      {roots.map((place) => (
-        <PlaceNode
-          key={place.id}
-          place={place}
-          depth={0}
-          entities={entities}
-          selected={selected}
-          highlighted={highlighted}
-          onDrop={handleDrop}
-        />
+      <DropZone parentId={null} index={0} depth={0} onMoveTo={handleMoveTo} />
+      {roots.map((place, i) => (
+        <React.Fragment key={place.id}>
+          <PlaceNode
+            place={place}
+            depth={0}
+            entities={entities}
+            selected={selected}
+            highlighted={highlighted}
+            onDrop={handleDrop}
+            onMoveTo={handleMoveTo}
+          />
+          <DropZone parentId={null} index={i + 1} depth={0} onMoveTo={handleMoveTo} />
+        </React.Fragment>
       ))}
       <InlineAddRow
         placeholder="Add place..."

@@ -9,7 +9,7 @@
  * Supports:
  * - Expand/collapse via ▶ toggle (default open for depth < 2)
  * - Selection + highlighting with consistent visual treatment
- * - Drag-and-drop reparenting (calls store.reparent)
+ * - Drag-and-drop reparenting (drop on item) and reordering (drop between items)
  * - Inline add row at each hierarchy level (calls store.addExperience)
  */
 
@@ -25,6 +25,7 @@ import {
 } from "../entities/helpers";
 import {
   Experience,
+  EntityId,
   CURRENCY_SYMBOLS,
   isExperience,
 } from "../entities/types";
@@ -62,6 +63,49 @@ function fmtCost(byCurrency: Map<string, number>): string {
       return `${sym}${amount.toLocaleString()}`;
     })
     .join(" + ");
+}
+
+// ─── Drop zone between items ───
+
+function DropZone({ parentId, index, depth, onMoveTo }: {
+  parentId: EntityId | null;
+  index: number;
+  depth: number;
+  onMoveTo: (draggedId: string, parentId: EntityId | null, index: number) => void;
+}) {
+  const [active, setActive] = useState(false);
+
+  return (
+    <div
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.dataTransfer.dropEffect = "move";
+        setActive(true);
+      }}
+      onDragLeave={() => setActive(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setActive(false);
+        const draggedId = e.dataTransfer.getData("text/plain");
+        if (draggedId) {
+          onMoveTo(draggedId, parentId, index);
+        }
+      }}
+      style={{
+        marginLeft: 26 + depth * 18,
+        marginRight: 16,
+      }}
+    >
+      <div style={{
+        height: 4,
+        borderRadius: 1,
+        background: active ? C.blue : "transparent",
+        transition: "background 0.12s",
+      }} />
+    </div>
+  );
 }
 
 // ─── Inline add row ───
@@ -142,13 +186,14 @@ function InlineAddRow({ placeholder, onAdd, depth }: {
 
 // ─── Experience tree node ───
 
-function ExperienceNode({ experience, depth, entities, selected, highlighted, onDrop }: {
+function ExperienceNode({ experience, depth, entities, selected, highlighted, onDrop, onMoveTo }: {
   experience: Experience;
   depth: number;
   entities: EntityMap;
   selected: Set<string>;
   highlighted: Set<string>;
   onDrop: (draggedId: string, targetId: string) => void;
+  onMoveTo: (draggedId: string, parentId: EntityId | null, index: number) => void;
 }) {
   const [open, setOpen] = useState(depth < 2);
   const [dragOver, setDragOver] = useState(false);
@@ -176,11 +221,6 @@ function ExperienceNode({ experience, depth, entities, selected, highlighted, on
   return (
     <>
       <div
-        draggable
-        onDragStart={(e) => {
-          e.dataTransfer.setData("text/plain", experience.id);
-          e.dataTransfer.effectAllowed = "move";
-        }}
         onDragOver={(e) => {
           e.preventDefault();
           e.dataTransfer.dropEffect = "move";
@@ -218,13 +258,18 @@ function ExperienceNode({ experience, depth, entities, selected, highlighted, on
             </span>
           )}
           <div
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData("text/plain", experience.id);
+              e.dataTransfer.effectAllowed = "move";
+            }}
             onClick={(e) => handleClick(experience.id, e)}
             style={{
               display: "flex",
               alignItems: "center",
               gap: 8,
               padding: "6px 10px",
-              margin: "1px 8px",
+              margin: "0 8px",
               marginLeft: hasKids ? 8 : 26,
               borderRadius: 6,
               cursor: "pointer",
@@ -321,25 +366,29 @@ function ExperienceNode({ experience, depth, entities, selected, highlighted, on
           </div>
         </div>
       </div>
-      {open && children.map((child) => (
-        <ExperienceNode
-          key={child.id}
-          experience={child}
-          depth={depth + 1}
-          entities={entities}
-          selected={selected}
-          highlighted={highlighted}
-          onDrop={onDrop}
-        />
-      ))}
       {open && hasKids && (
-        <div style={{ paddingLeft: (depth + 1) * 18 }}>
+        <>
+          <DropZone parentId={experience.id} index={0} depth={depth + 1} onMoveTo={onMoveTo} />
+          {children.map((child, i) => (
+            <React.Fragment key={child.id}>
+              <ExperienceNode
+                experience={child}
+                depth={depth + 1}
+                entities={entities}
+                selected={selected}
+                highlighted={highlighted}
+                onDrop={onDrop}
+                onMoveTo={onMoveTo}
+              />
+              <DropZone parentId={experience.id} index={i + 1} depth={depth + 1} onMoveTo={onMoveTo} />
+            </React.Fragment>
+          ))}
           <InlineAddRow
             placeholder="Add experience..."
             depth={0}
             onAdd={(name) => addExperience(name, experience.id)}
           />
-        </div>
+        </>
       )}
     </>
   );
@@ -351,6 +400,7 @@ export function ExperiencesView() {
   const entities = useEntityStore((s) => s.entities);
   const selected = useSelectionStore((s) => s.selected);
   const reparent = useEntityStore((s) => s.reparent);
+  const moveTo = useEntityStore((s) => s.moveTo);
   const addExperience = useEntityStore((s) => s.addExperience);
 
   const highlighted = computeHighlighted(entities, selected);
@@ -360,18 +410,32 @@ export function ExperiencesView() {
     reparent(draggedId, targetId);
   }, [reparent]);
 
+  const handleMoveTo = useCallback((draggedId: string, parentId: EntityId | null, index: number) => {
+    // Adjust for off-by-one when dropping below self in same parent
+    const dragged = entities.get(draggedId);
+    if (dragged && dragged.parentId === parentId && dragged.sortOrder < index) {
+      moveTo(draggedId, parentId, index - 1);
+    } else {
+      moveTo(draggedId, parentId, index);
+    }
+  }, [moveTo, entities]);
+
   return (
     <div style={{ overflow: "auto", height: "100%", paddingTop: 4, paddingBottom: 16 }}>
-      {roots.map((exp) => (
-        <ExperienceNode
-          key={exp.id}
-          experience={exp}
-          depth={0}
-          entities={entities}
-          selected={selected}
-          highlighted={highlighted}
-          onDrop={handleDrop}
-        />
+      <DropZone parentId={null} index={0} depth={0} onMoveTo={handleMoveTo} />
+      {roots.map((exp, i) => (
+        <React.Fragment key={exp.id}>
+          <ExperienceNode
+            experience={exp}
+            depth={0}
+            entities={entities}
+            selected={selected}
+            highlighted={highlighted}
+            onDrop={handleDrop}
+            onMoveTo={handleMoveTo}
+          />
+          <DropZone parentId={null} index={i + 1} depth={0} onMoveTo={handleMoveTo} />
+        </React.Fragment>
       ))}
       <InlineAddRow
         placeholder="Add experience..."
