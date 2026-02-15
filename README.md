@@ -11,6 +11,8 @@ npm run dev
 
 Opens at `http://localhost:3000`. The app loads with seed data (Kyoto March 2026 trip) so you can immediately see entity chips in the notes editor.
 
+**Reference mockup:** The file `two-pane-v12.jsx` in the project root is a self-contained React artifact demonstrating the complete UI design (~800 lines). Paste it into any React sandbox to see the intended visual appearance and interactions.
+
 ## Architecture
 
 ```
@@ -27,31 +29,39 @@ src/
 │   ├── SlashCommand.tsx     # /-command for linking/creating entities
 │   └── NotesEditor.tsx      # Editor component wiring
 │
-├── liveblocks/        # Real-time collaboration (placeholder)
-│   └── config.ts      # Client setup, types, room context
+├── liveblocks/        # Real-time collaboration
+│   ├── config.ts      # Client setup, types, room context
+│   ├── sync.ts        # Bidirectional entity sync
+│   └── Room.tsx       # Room wrapper component
 │
 ├── App.tsx            # Root: two-pane layout, tab routing, hydration
 ├── styles.css         # Design tokens + all component styles
 └── main.tsx           # Entry point
 ```
 
-## What's working
+## Features
 
-- **Entity model**: Place (locatable, tree hierarchy) and Experience (temporal, DAG-capable, optional amount). Full type system with factory functions.
-- **Entity store**: Zustand with CRUD for places and experiences. Hydrate from seed or Liveblocks. Cascading deletes, reparenting, sort order.
-- **Selection system**: Click/Ctrl-click/day-click with derived highlighting. `computeHighlighted()` follows relationships bidirectionally (place→experiences, experience→places, parent→children).
-- **Notes editor**: TipTap with custom EntityChip inline node. Chips are reactive (read live entity data from store), show type-specific icons and indicators.
-- **Slash commands**: Type `/` to search entities. Prioritizes unmentioned entities. Create new entities inline. Inserts chip on selection.
-- **Two-pane layout**: Map/Schedule/Expenses left, Notes/Places/Experiences right. Tab switching with navigation from chip clicks.
+- **Entity model**: Place (locatable, tree hierarchy) and Experience (temporal, optional amount). Full type system with factory functions.
+- **Entity store**: Zustand with CRUD operations. Cascading deletes, reparenting, sort order.
+- **Selection system**: Click/Ctrl-click/day-click with derived highlighting. `computeHighlighted()` follows relationships bidirectionally.
+- **Notes editor**: TipTap with custom EntityChip inline nodes. Chips are reactive and show type-specific icons and indicators.
+- **Slash commands**: Type `/` to search entities. Create new entities inline. Inserts chip on selection.
+- **Tree views**: Places and Experiences hierarchies with drag-and-drop reparenting.
+- **Schedule view**: Chronological list, drag-to-reschedule, inline time editing, timezone picker.
+- **Expenses view**: Filtered expense list, inline amount editing, multi-currency totals.
+- **Map view**: Leaflet integration with entity pins, selection/highlight states, unlocated footer.
+- **Real-time collaboration**: Liveblocks integration for entity sync, collaborative editing, and presence.
 
-## What's next
+## Documentation
 
-1. **Wire Liveblocks**: Add `VITE_LIVEBLOCKS_PUBLIC_KEY` to `.env`, uncomment `liveblocks/config.ts`, wrap App in `<RoomProvider>`, sync entity store to LiveMap, connect TipTap to Yjs provider.
-2. **Places tree view**: Render `getRoots("place")` + `getChildren()`, drag-and-drop reparenting, inline add.
-3. **Experiences tree view**: Same pattern with schedule/amount metadata in line items.
-4. **Schedule view**: Date range header, grouped by day, drag between dates, inline time editing, timezone picker.
-5. **Expenses view**: Filtered experience list, inline amount + currency editing, multi-currency totals.
-6. **Map view**: Leaflet/Mapbox with entity pins, selection/highlight states, unlocated footer.
+**[AGENTS.md](./AGENTS.md)** - Documentation index and table of contents
+
+**Core guides:**
+- [docs/DATA_MODEL.md](./docs/DATA_MODEL.md) - Entity types, relationships, store architecture
+- [docs/EDITOR.md](./docs/EDITOR.md) - Notes editor, chips, slash commands
+- [docs/VIEWS.md](./docs/VIEWS.md) - UI views and interactions
+- [docs/TESTING.md](./docs/TESTING.md) - E2E testing with Playwright
+- [docs/COLLABORATION.md](./docs/COLLABORATION.md) - Real-time features with Liveblocks
 
 ## Design decisions
 

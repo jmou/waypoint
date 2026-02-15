@@ -1,6 +1,13 @@
 # Data Attributes for E2E Testing
 
-This document lists all data attributes that components need to implement for e2e tests to work.
+Complete reference for data attributes used in Playwright tests.
+
+## Quick Start
+
+1. Find the component you're implementing
+2. Copy the code example with data attributes
+3. Run tests: `pnpm run test:e2e:ui`
+4. Fix any failing selectors
 
 ## Why Data Attributes?
 
@@ -10,11 +17,20 @@ Data attributes provide stable, semantic selectors that:
 - Clearly indicate an element's purpose in tests
 - Don't interfere with styling or behavior
 
+**Always use:** `"true"` or `undefined` for booleans (never `"false"` or `.toString()`)
+
 ## Component Requirements
 
 ### Chip Component (`src/components/Chip.tsx`)
 
 The shared Chip component used in notes, popover, and tree views.
+
+**Navigation behavior:**
+- Pin icon on place chip → selects place + opens Map
+- Pin icon on experience chip → selects experience + opens Map (not the place!)
+- Clock icon → selects experience + opens Schedule
+- Amount → selects experience + opens Expenses
+- Name → selects entity only (no navigation)
 
 ```tsx
 <div
@@ -399,6 +415,52 @@ Parent-child relationships should use `data-entity-id` and `data-parent-id`:
   <div data-tree-node data-entity-id="p-fushimi" data-parent-id="p-kyoto" />
 </div>
 ```
+
+## Common Issues
+
+### Element Not Found
+**Error:** `Timed out waiting for selector [data-entity-chip]`
+
+**Solutions:**
+- Check attribute exists in browser DevTools
+- Ensure element is rendered (not conditionally hidden)
+- Wait for app hydration in test `beforeEach`
+
+### Wrong Attribute Value
+**Error:** `Expected "true" but got undefined`
+
+**Solutions:**
+```tsx
+// ✓ Correct
+data-selected={isSelected ? "true" : undefined}
+
+// ✗ Wrong - creates "false" string
+data-selected={isSelected.toString()}
+```
+
+### Click Not Working
+**Error:** `Element is not visible` or `Element is covered`
+
+**Solutions:**
+- Wait for visibility: `await expect(element).toBeVisible()`
+- Check `display: none` or `opacity: 0` in CSS
+- Verify z-index and pointer-events
+
+### Drag-and-Drop Fails
+**Error:** `dragTo failed` or entity not reparented
+
+**Solutions:**
+- Verify `data-drop-zone` attributes present
+- Ensure drop zones visible during drag
+- Check handler calls `store.reparent()`
+
+### Selection Not Persisting
+**Error:** Selected in one view but not another
+
+**Solutions:**
+- Verify all components use same `useSelectionStore()`
+- Check `isSelected = selectedIds.includes(entity.id)`
+- Ensure selection state not local to component
 
 ## Testing Utilities
 
