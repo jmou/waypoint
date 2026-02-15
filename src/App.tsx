@@ -18,6 +18,7 @@ import { NavigationProvider } from "./context/NavigationContext";
 import { Chip } from "./components/Chip";
 import { PlacesView } from "./components/PlacesView";
 import { ExperiencesView } from "./components/ExperiencesView";
+import { ScheduleView } from "./components/ScheduleView";
 import "./styles.css";
 
 type LeftTab = "map" | "schedule" | "expenses";
@@ -78,7 +79,7 @@ export default function App() {
             />
             <div className="pane__content">
               {leftTab === "map" && <PlaceholderView label="Map" description="Drag pins, see selections light up" />}
-              {leftTab === "schedule" && <PlaceholderView label="Schedule" description="Drag experiences between dates" />}
+              {leftTab === "schedule" && <ScheduleView />}
               {leftTab === "expenses" && <PlaceholderView label="Expenses" description="Inline-editable amounts with currency picker" />}
             </div>
           </div>
