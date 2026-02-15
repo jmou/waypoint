@@ -229,27 +229,7 @@ export function MapView() {
         initialViewState={initialViewState}
         style={{ width: "100%", height: "100%" }}
         reuseMaps
-        mapStyle={{
-          version: 8,
-          sources: {
-            osm: {
-              type: "raster",
-              tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-              tileSize: 256,
-              attribution:
-                '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-            },
-          },
-          layers: [
-            {
-              id: "osm-tiles",
-              type: "raster",
-              source: "osm",
-              minzoom: 0,
-              maxzoom: 19,
-            },
-          ],
-        }}
+        mapStyle="https://tiles.openfreemap.org/styles/liberty"
         onLoad={handleMapLoad}
       >
         {/* Navigation controls (zoom buttons) */}

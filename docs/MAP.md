@@ -4,8 +4,6 @@
 
 The Map view displays places on an interactive map using MapLibre GL JS with react-map-gl bindings. Places with coordinates appear as labeled pins on the map, while unlocated places are shown in a footer bar for quick access.
 
-**Migration:** The Map view was migrated from Leaflet to MapLibre GL JS in commit `7a8adea` for better performance, modern rendering, and improved customization.
-
 ## Architecture
 
 ### Component Structure
@@ -28,36 +26,11 @@ MapView.tsx
 }
 ```
 
-**CSS:** Import `maplibre-gl/dist/maplibre-gl.css` for controls and attribution.
-
 ## Map Configuration
 
 ### Base Map Style
 
-Uses OpenStreetMap tiles via a custom MapLibre style specification:
-
-```typescript
-mapStyle={{
-  version: 8,
-  sources: {
-    osm: {
-      type: "raster",
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      tileSize: 256,
-      attribution: '&copy; OpenStreetMap contributors',
-    },
-  },
-  layers: [
-    {
-      id: "osm-tiles",
-      type: "raster",
-      source: "osm",
-      minzoom: 0,
-      maxzoom: 19,
-    },
-  ],
-}}
-```
+Uses the OpenFreeMap Liberty style, a complete vector tile style based on OpenStreetMap data. This provides a full-featured vector map with proper labels, roads, and geographic features.
 
 ### Initial Viewport
 
@@ -281,7 +254,7 @@ Rendered by MapLibre as:
 
 ### Attribution
 
-MapLibre automatically renders attribution control with OpenStreetMap copyright.
+MapLibre automatically renders attribution.
 
 ## Integration with Selection System
 
@@ -313,22 +286,6 @@ const highlighted = useMemo(
 - Selected parent → highlights descendants
 
 See `docs/DATA_MODEL.md` for full highlighting logic.
-
-### Cross-View Selection
-
-**Example flows:**
-
-1. **Map → Schedule:**
-   - Click place pin on map → place selected
-   - Switch to Schedule view → experiences at that place are highlighted
-
-2. **Schedule → Map:**
-   - Click experience in Schedule → experience selected
-   - Switch to Map → associated place pin is highlighted
-
-3. **Chip pin icon → Map:**
-   - Click pin icon on any entity chip → navigates to Map view
-   - Entity is selected, pin shows selected state
 
 ## Server-Side Rendering
 
@@ -464,22 +421,6 @@ The `reuseMaps` prop prevents MapLibre from destroying and recreating map instan
 2. Verify `selectedIds` array updates
 3. Confirm `selected.has(place.id)` returns true
 
-### Map Tiles Don't Load
-
-**Symptom:** Gray background, no tiles.
-
-**Cause:** OSM tile server unreachable, or CORS issue.
-
-**Solution:** Check network tab for tile requests. OSM tiles require attribution and have usage policies.
-
-### Unlocated Footer Missing
-
-**Symptom:** Footer doesn't appear.
-
-**Cause:** `unlocatedPlaces.length === 0` (all places have coords, or all are root).
-
-**Expected:** Only non-root places without coords appear in footer.
-
 ## Future Enhancements
 
 Potential improvements not yet implemented:
@@ -491,10 +432,3 @@ Potential improvements not yet implemented:
 - **Route lines:** Connect scheduled experiences visually
 - **Geocoding:** Add coordinates by searching addresses
 - **Offline tiles:** Cache tiles for offline use
-
-## Related Documentation
-
-- **VIEWS.md** — Overview of all views and layout
-- **DATA_MODEL.md** — Place entity type, coords field, highlighting logic
-- **TESTING.md** — E2E testing approach and patterns
-- **e2e/DATA_ATTRIBUTES.md** — Data attribute reference for map elements
