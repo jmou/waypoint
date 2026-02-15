@@ -1,5 +1,5 @@
 /**
- * MapView — Shows entity pins on a map with Leaflet.
+ * MapView — Shows entity pins on a map using react-map-gl.
  *
  * Features:
  * - Render pins for all places that have coordinates
@@ -11,9 +11,10 @@
  * - Pan-to-fit on load and when selection changes
  */
 
-import React, { useEffect, useRef, useState, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
-import L from "leaflet";
+import React, { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import Map, { Marker, NavigationControl } from "react-map-gl/maplibre";
+import type { MapRef } from "react-map-gl/maplibre";
+import maplibregl from "maplibre-gl";
 import { useEntityStore } from "../entities/store";
 import { useSelectionStore } from "../entities/selection";
 import { computeHighlighted } from "../entities/helpers";
@@ -21,13 +22,22 @@ import { isPlace } from "../entities/types";
 import type { Place } from "../entities/types";
 import { Chip } from "./Chip";
 
+import "maplibre-gl/dist/maplibre-gl.css";
+
 // ─── Colors (must match design tokens) ───
 
 const ACCENT = "#a33d22";
 
-// ─── Custom Pin Icon Factory ───
+// ─── Pin Marker Component ───
 
-function createPinIcon(selected: boolean, highlighted: boolean) {
+interface PinMarkerProps {
+  place: { id: string; name: string };
+  selected: boolean;
+  highlighted: boolean;
+  onClick: (e: React.MouseEvent) => void;
+}
+
+const PinMarker = React.memo(function PinMarker({ place, selected, highlighted, onClick }: PinMarkerProps) {
   const color = selected ? ACCENT : highlighted ? "#e8d4cc" : "#ffffff";
   const textColor = selected ? "#fff" : "#1a1917";
   const borderColor = selected
@@ -39,105 +49,68 @@ function createPinIcon(selected: boolean, highlighted: boolean) {
     ? `0 2px 10px ${ACCENT}80`
     : "0 1px 4px rgba(0,0,0,0.12)";
 
-  // Create a custom divIcon with HTML/CSS
-  const html = `
-    <div style="
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      transform: translate(-50%, -100%);
-      cursor: pointer;
-      z-index: ${selected || highlighted ? 10 : 1};
-    ">
-      <div style="
-        background: ${color};
-        color: ${textColor};
-        font-size: 9px;
-        font-weight: 600;
-        padding: 3px 8px;
-        border-radius: 4px;
-        white-space: nowrap;
-        margin-bottom: 3px;
-        border: ${highlighted && !selected ? `1.5px solid ${borderColor}` : "none"};
-        box-shadow: ${shadow};
-        transition: all 0.15s;
-        font-family: 'DM Sans', sans-serif;
-      " data-pin-label></div>
-      <div style="
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: ${selected ? ACCENT : highlighted ? ACCENT : "#ffffff"};
-        border: 2px solid ${selected ? "#ffffff" : ACCENT};
-        opacity: ${highlighted && !selected ? 0.6 : 1};
-        box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-      "></div>
+  return (
+    <div
+      className="custom-pin-icon"
+      onClick={onClick}
+      style={{
+        position: "relative",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        cursor: "pointer",
+        pointerEvents: "auto",
+        zIndex: selected || highlighted ? 10 : 1,
+      }}
+    >
+      <div
+        data-pin-label=""
+        style={{
+          background: color,
+          color: textColor,
+          fontSize: 9,
+          fontWeight: 600,
+          padding: "3px 8px",
+          borderRadius: 4,
+          whiteSpace: "nowrap",
+          marginBottom: 3,
+          border: highlighted && !selected ? `1.5px solid ${borderColor}` : "none",
+          boxShadow: shadow,
+          transition: "all 0.15s",
+          fontFamily: "'DM Sans', sans-serif",
+          pointerEvents: "none",
+        }}
+      >
+        {place.name}
+      </div>
+      <div
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: "50%",
+          background: selected ? ACCENT : highlighted ? ACCENT : "#ffffff",
+          border: `2px solid ${selected ? "#ffffff" : ACCENT}`,
+          opacity: highlighted && !selected ? 0.6 : 1,
+          boxShadow: "0 1px 3px rgba(0,0,0,0.15)",
+          pointerEvents: "none",
+        }}
+      />
     </div>
-  `;
-
-  return L.divIcon({
-    html,
-    className: "custom-pin-icon",
-    iconSize: [0, 0],
-    iconAnchor: [0, 0],
-  });
-}
-
-// ─── Fit Bounds Component ───
-
-interface FitBoundsProps {
-  places: Array<{ id: string; lat: number; lng: number }>;
-}
-
-function FitBounds({ places }: FitBoundsProps) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (places.length === 0) return;
-
-    const bounds = new L.LatLngBounds(
-      places.map((p) => [p.lat, p.lng] as [number, number])
-    );
-
-    map.fitBounds(bounds, {
-      padding: [50, 50],
-      maxZoom: 13,
-    });
-  }, [map, places]);
-
-  return null;
-}
-
-// ─── Update Markers Component ───
-
-interface UpdateMarkersProps {
-  selected: Set<string>;
-}
-
-function UpdateMarkers({ selected }: UpdateMarkersProps) {
-  const map = useMap();
-
-  useEffect(() => {
-    // Trigger a map update to re-render markers when selection changes
-    map.invalidateSize();
-  }, [map, selected]);
-
-  return null;
-}
+  );
+});
 
 // ─── Map View Component ───
 
 export function MapView() {
   const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const mapRef = useRef<MapRef>(null);
 
   const entities = useEntityStore((s) => s.entities);
   const selected = useSelectionStore((s) => s.selected);
   const handleClick = useSelectionStore((s) => s.handleClick);
+
+  // Convert selected Set to array for proper React dependency tracking
+  const selectedIds = useMemo(() => Array.from(selected), [selected]);
 
   // Compute highlighted set using the helper function
   const highlighted = useMemo(
@@ -145,27 +118,81 @@ export function MapView() {
     [entities, selected]
   );
 
-  // Get all located places
-  const locatedPlaces = Array.from(entities.values())
-    .filter((e): e is Place => isPlace(e) && e.coords !== null)
-    .map((place) => ({
-      id: place.id,
-      name: place.name,
-      lat: place.coords!.lat,
-      lng: place.coords!.lng,
-    }));
+  // Convert highlighted Set to array for proper React dependency tracking
+  const highlightedIds = useMemo(() => Array.from(highlighted), [highlighted]);
 
-  // Get unlocated places
-  const unlocatedPlaces = Array.from(entities.values())
-    .filter((e) => isPlace(e) && e.coords === null && e.parentId !== null);
+  // Get all located places - memoized to avoid unnecessary re-renders
+  const locatedPlaces = useMemo(
+    () =>
+      Array.from(entities.values())
+        .filter((e): e is Place => isPlace(e) && e.coords !== null)
+        .map((place) => ({
+          id: place.id,
+          name: place.name,
+          lat: place.coords!.lat,
+          lng: place.coords!.lng,
+        })),
+    [entities]
+  );
 
-  const defaultCenter: [number, number] =
-    locatedPlaces.length > 0
-      ? [locatedPlaces[0].lat, locatedPlaces[0].lng]
-      : [35.0116, 135.7681]; // Kyoto default
+  // Get unlocated places - memoized
+  const unlocatedPlaces = useMemo(
+    () =>
+      Array.from(entities.values()).filter(
+        (e) => isPlace(e) && e.coords === null && e.parentId !== null
+      ),
+    [entities]
+  );
 
-  // Custom marker refs
-  const markerRefs = useRef<Map<string, L.Marker>>(new Map());
+  // Calculate initial viewport
+  const initialViewState = useMemo(() => {
+    const defaultCenter: [number, number] =
+      locatedPlaces.length > 0
+        ? [locatedPlaces[0].lng, locatedPlaces[0].lat]
+        : [135.7681, 35.0116]; // Kyoto default
+
+    return {
+      longitude: defaultCenter[0],
+      latitude: defaultCenter[1],
+      zoom: 11,
+    };
+  }, [locatedPlaces.length]);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Fit bounds to show all pins after map loads
+  const handleMapLoad = useCallback(() => {
+    if (!mapRef.current || locatedPlaces.length === 0) return;
+
+    const map = mapRef.current.getMap();
+    const bounds = new maplibregl.LngLatBounds();
+
+    locatedPlaces.forEach((place) => {
+      bounds.extend([place.lng, place.lat]);
+    });
+
+    map.fitBounds(bounds, {
+      padding: 50,
+      maxZoom: 13,
+    });
+  }, [locatedPlaces]);
+
+  // Create stable click handlers for each place
+  const pinClickHandlers = useMemo(() => {
+    const handlers: Record<string, (e: React.MouseEvent) => void> = {};
+    locatedPlaces.forEach((place) => {
+      handlers[place.id] = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        handleClick(place.id, {
+          ctrlKey: e.ctrlKey,
+          metaKey: e.metaKey,
+        });
+      };
+    });
+    return handlers;
+  }, [locatedPlaces, handleClick]);
 
   // Don't render on server
   if (!isMounted) {
@@ -197,59 +224,60 @@ export function MapView() {
         background: "#eae8e2",
       }}
     >
-      <MapContainer
-        center={defaultCenter}
-        zoom={11}
-        style={{ width: "100%", height: "100%", zIndex: 0 }}
-        zoomControl={true}
+      <Map
+        ref={mapRef}
+        initialViewState={initialViewState}
+        style={{ width: "100%", height: "100%" }}
+        reuseMaps
+        mapStyle={{
+          version: 8,
+          sources: {
+            osm: {
+              type: "raster",
+              tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+              tileSize: 256,
+              attribution:
+                '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            },
+          },
+          layers: [
+            {
+              id: "osm-tiles",
+              type: "raster",
+              source: "osm",
+              minzoom: 0,
+              maxzoom: 19,
+            },
+          ],
+        }}
+        onLoad={handleMapLoad}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+        {/* Navigation controls (zoom buttons) */}
+        <NavigationControl position="top-right" />
 
+        {/* Render markers for each located place */}
         {locatedPlaces.map((place) => {
           const isSel = selected.has(place.id);
           const isHl = highlighted.has(place.id);
+          const onClick = pinClickHandlers[place.id];
 
           return (
             <Marker
               key={place.id}
-              position={[place.lat, place.lng]}
-              icon={createPinIcon(isSel, isHl)}
-              eventHandlers={{
-                click: (e) => {
-                  handleClick(place.id, {
-                    ctrlKey: e.originalEvent.ctrlKey,
-                    metaKey: e.originalEvent.metaKey,
-                  });
-                },
-              }}
-              ref={(ref) => {
-                if (ref) {
-                  markerRefs.current.set(place.id, ref);
-                  // Update marker label text
-                  const marker = ref;
-                  const iconElement = marker.getElement();
-                  if (iconElement) {
-                    const label = iconElement.querySelector(
-                      "[data-pin-label]"
-                    ) as HTMLElement;
-                    if (label) {
-                      label.textContent = place.name;
-                    }
-                  }
-                }
-              }}
+              longitude={place.lng}
+              latitude={place.lat}
+              anchor="bottom"
             >
-              <Popup>{place.name}</Popup>
+              <PinMarker
+                place={place}
+                selected={isSel}
+                highlighted={isHl}
+                onClick={onClick}
+              />
             </Marker>
           );
         })}
-
-        <FitBounds places={locatedPlaces} />
-        <UpdateMarkers selected={selected} />
-      </MapContainer>
+      </Map>
 
       {/* Unlocated places footer */}
       {unlocatedPlaces.length > 0 && (
