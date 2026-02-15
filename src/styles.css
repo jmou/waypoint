@@ -440,3 +440,31 @@ html, body, #root {
   background: var(--color-surface-alt);
   color: var(--color-text);
 }
+
+/* ─── Collaborative cursors (TipTap) ─── */
+
+.collaboration-cursor__caret {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 2px solid;
+  border-right: 2px solid;
+  word-break: normal;
+  pointer-events: none;
+}
+
+.collaboration-cursor__label {
+  position: absolute;
+  top: -1.4em;
+  left: -1px;
+  font-size: 11px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-style: normal;
+  padding: 2px 6px;
+  color: #fff;
+  border-radius: 3px;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}

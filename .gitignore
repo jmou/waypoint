@@ -2,6 +2,10 @@
 /dist/
 package-lock.json
 
+# Environment variables
+.env
+.env.local
+
 # Playwright
 /test-results/
 /playwright-report/

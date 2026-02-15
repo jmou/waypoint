@@ -7,20 +7,26 @@
  * stubs ready to be built out.
  */
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, lazy, Suspense } from "react";
 import { useEntityStore } from "./entities/store";
 import { useSelectionStore } from "./entities/selection";
 import { computeHighlighted } from "./entities/helpers";
 import { isExperience, CURRENCY_SYMBOLS, Entity } from "./entities/types";
 import { SEED_ENTITIES, SEED_TRIP, SEED_DOCUMENT } from "./entities/seed";
 import { NotesEditor } from "./editor/NotesEditor";
+import { CollaborativeNotesEditor } from "./editor/CollaborativeNotesEditor";
 import { NavigationProvider } from "./context/NavigationContext";
 import { Chip } from "./components/Chip";
 import { PlacesView } from "./components/PlacesView";
 import { ExperiencesView } from "./components/ExperiencesView";
 import { ScheduleView } from "./components/ScheduleView";
 import { ExpensesView } from "./components/ExpensesView";
+import { LiveblocksRoom } from "./liveblocks/Room";
+import { LIVEBLOCKS_ENABLED } from "./liveblocks/config";
 import "./styles.css";
+
+// Lazy load MapView to avoid Leaflet initialization issues in test environments
+const MapView = lazy(() => import("./components/MapView").then(m => ({ default: m.MapView })));
 
 type LeftTab = "map" | "schedule" | "expenses";
 type RightTab = "notes" | "places" | "experiences";
@@ -32,14 +38,19 @@ export default function App() {
   const selected = useSelectionStore((s) => s.selected);
   const clearSelection = useSelectionStore((s) => s.clear);
 
-  const [leftTab, setLeftTab] = useState<LeftTab>("map");
+  const [leftTab, setLeftTab] = useState<LeftTab>("schedule");
   const [rightTab, setRightTab] = useState<RightTab>("notes");
   const [ready, setReady] = useState(false);
 
-  // Hydrate store on mount
+  // Hydrate store on mount (only if Liveblocks is disabled)
   useEffect(() => {
-    hydrate(SEED_ENTITIES, SEED_TRIP);
-    setReady(true);
+    if (!LIVEBLOCKS_ENABLED) {
+      hydrate(SEED_ENTITIES, SEED_TRIP);
+      setReady(true);
+    } else {
+      // When using Liveblocks, sync handles hydration
+      setReady(true);
+    }
   }, [hydrate]);
 
   const highlighted = computeHighlighted(entities, selected);
@@ -49,11 +60,52 @@ export default function App() {
     else if (["notes", "places", "experiences"].includes(view)) setRightTab(view as RightTab);
   }, []);
 
-  if (!ready || !trip) return null;
+  if (!ready) return null;
+
+  const content = (
+    <NavigationProvider onNavigate={handleNavigate}>
+      <AppContent
+        leftTab={leftTab}
+        rightTab={rightTab}
+        setLeftTab={setLeftTab}
+        setRightTab={setRightTab}
+        handleNavigate={handleNavigate}
+      />
+    </NavigationProvider>
+  );
+
+  // Wrap with LiveblocksRoom if enabled
+  if (LIVEBLOCKS_ENABLED) {
+    return <LiveblocksRoom roomId="waypoint-kyoto">{content}</LiveblocksRoom>;
+  }
+
+  return content;
+}
+
+function AppContent({
+  leftTab,
+  rightTab,
+  setLeftTab,
+  setRightTab,
+  handleNavigate,
+}: {
+  leftTab: LeftTab;
+  rightTab: RightTab;
+  setLeftTab: (tab: LeftTab) => void;
+  setRightTab: (tab: RightTab) => void;
+  handleNavigate: (view: string) => void;
+}) {
+  const entities = useEntityStore((s) => s.entities);
+  const trip = useEntityStore((s) => s.trip);
+  const selected = useSelectionStore((s) => s.selected);
+  const clearSelection = useSelectionStore((s) => s.clear);
+
+  const highlighted = computeHighlighted(entities, selected);
+
+  if (!trip) return null;
 
   return (
-    <NavigationProvider onNavigate={handleNavigate}>
-      <div className="app">
+    <div className="app">
         {/* ─── Title bar ─── */}
         <header className="titlebar">
           <span className="titlebar__name">{trip.name}</span>
@@ -79,7 +131,11 @@ export default function App() {
               onSelect={(id) => setLeftTab(id as LeftTab)}
             />
             <div className="pane__content">
-              {leftTab === "map" && <PlaceholderView label="Map" description="Drag pins, see selections light up" />}
+              {leftTab === "map" && (
+                <Suspense fallback={<MapLoadingFallback />}>
+                  <MapView />
+                </Suspense>
+              )}
               {leftTab === "schedule" && <ScheduleView />}
               {leftTab === "expenses" && <ExpensesView />}
             </div>
@@ -99,10 +155,17 @@ export default function App() {
             />
             <div className="pane__content">
               {rightTab === "notes" && (
-                <NotesEditor
-                  initialContent={SEED_DOCUMENT}
-                  onNavigate={handleNavigate}
-                />
+                LIVEBLOCKS_ENABLED ? (
+                  <CollaborativeNotesEditor
+                    initialContent={SEED_DOCUMENT}
+                    onNavigate={handleNavigate}
+                  />
+                ) : (
+                  <NotesEditor
+                    initialContent={SEED_DOCUMENT}
+                    onNavigate={handleNavigate}
+                  />
+                )
               )}
               {rightTab === "places" && <PlacesView />}
               {rightTab === "experiences" && <ExperiencesView />}
@@ -120,7 +183,6 @@ export default function App() {
           />
         )}
       </div>
-    </NavigationProvider>
   );
 }
 
@@ -202,6 +264,27 @@ function SelectionPopover({ selected, entities, onNavigate, onClear }: {
       <span className="selection-popover__close" data-action="clear" onClick={onClear} title="Clear selection">
         ×
       </span>
+    </div>
+  );
+}
+
+// ─── Map Loading Fallback ───
+
+function MapLoadingFallback() {
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#eae8e2",
+        color: "#8a8680",
+        fontSize: 13,
+      }}
+    >
+      Loading map...
     </div>
   );
 }
