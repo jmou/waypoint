@@ -16,6 +16,8 @@ import { SEED_ENTITIES, SEED_TRIP, SEED_DOCUMENT } from "./entities/seed";
 import { NotesEditor } from "./editor/NotesEditor";
 import { NavigationProvider } from "./context/NavigationContext";
 import { Chip } from "./components/Chip";
+import { PlacesView } from "./components/PlacesView";
+import { ExperiencesView } from "./components/ExperiencesView";
 import "./styles.css";
 
 type LeftTab = "map" | "schedule" | "expenses";
@@ -98,8 +100,8 @@ export default function App() {
                   onNavigate={handleNavigate}
                 />
               )}
-              {rightTab === "places" && <PlaceholderView label="Places" description="Tree hierarchy with drag-and-drop" />}
-              {rightTab === "experiences" && <PlaceholderView label="Experiences" description="Tree hierarchy with inline metadata" />}
+              {rightTab === "places" && <PlacesView />}
+              {rightTab === "experiences" && <ExperiencesView />}
             </div>
           </div>
         </div>
