@@ -3,12 +3,23 @@ import { execSync } from 'child_process';
 
 function getChromiumPath(): string | undefined {
   try {
-    return execSync('which chromium 2>/dev/null || true')
+    const which = execSync('which chromium 2>/dev/null || true')
       .toString()
       .trim();
+    if (which) return which;
   } catch {
-    return undefined;
+    // ignore
   }
+  // Fallback: check ms-playwright cache for any installed chromium
+  try {
+    const found = execSync('find /root/.cache/ms-playwright -name "chrome" -type f 2>/dev/null | head -1')
+      .toString()
+      .trim();
+    if (found) return found;
+  } catch {
+    // ignore
+  }
+  return undefined;
 }
 
 export default defineConfig({

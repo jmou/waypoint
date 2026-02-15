@@ -164,6 +164,19 @@ function formatCostBreakdown(byCurrency: Map<Currency, number>): string {
 
 // ─── Schedule queries ───
 
+/** Parse a 12-hour time string like "2:00 PM" into minutes since midnight for sorting. */
+function parseTimeToMinutes(time: string | null | undefined): number {
+  if (!time) return 24 * 60; // null/undefined sorts last
+  const match = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return 24 * 60;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+  if (period === "AM" && hours === 12) hours = 0;
+  else if (period === "PM" && hours !== 12) hours += 12;
+  return hours * 60 + minutes;
+}
+
 /** Get experiences scheduled on a specific date. */
 export function getExperiencesForDate(
   entities: EntityMap,
@@ -176,7 +189,7 @@ export function getExperiencesForDate(
     }
   }
   return result.sort((a, b) =>
-    (a.schedule?.time || "zzz").localeCompare(b.schedule?.time || "zzz")
+    parseTimeToMinutes(a.schedule?.time) - parseTimeToMinutes(b.schedule?.time)
   );
 }
 

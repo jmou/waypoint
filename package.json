@@ -11,7 +11,8 @@
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:phase1": "playwright test phase1",
-    "test:e2e:phase2": "playwright test phase2"
+    "test:e2e:phase2": "playwright test phase2",
+    "test:e2e:phase3": "playwright test phase3"
   },
   "dependencies": {
     "@liveblocks/client": "^2.0.0",
