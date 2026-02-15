@@ -104,6 +104,34 @@ Hierarchical tree of all experiences.
 - Schedule (clock icon + formatted date)
 - Cost (for parent nodes: aggregated subtree cost)
 
+## Map View (LEFT PANE)
+
+Interactive map showing place locations using MapLibre GL JS.
+
+**Features:**
+- Pins for all places with coordinates
+- Pin labels show place name
+- Click pin → select place
+- Ctrl+click → multi-select places
+- Unlocated places footer with clickable chips
+
+**Visual states:**
+- Default: white label background
+- Selected: accent `#a33d22` background, white text, glow shadow
+- Highlighted: tinted `#e8d4cc` background, accent border
+
+**Controls:**
+- Zoom in/out buttons (top-right)
+- Pan/drag to explore
+- Auto-fit bounds on load
+
+**Unlocated footer:**
+- Semi-transparent bar at bottom
+- Shows chips for places without coordinates
+- Same selection behavior as map pins
+
+**See [docs/MAP.md](./MAP.md) for complete details:** pin rendering, MapLibre integration, pan-to-fit, testing, performance.
+
 ## Schedule View (LEFT PANE)
 
 Chronological list of experiences grouped by date.

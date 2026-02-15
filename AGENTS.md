@@ -9,6 +9,7 @@
 - **DATA_MODEL.md** - Entity types (Place/Experience), relationships, selection/highlighting, Zustand stores, mutations, design rationale
 - **EDITOR.md** - TipTap integration, entity chips, slash commands, document storage format
 - **VIEWS.md** - All UI views (Notes, Places, Experiences, Schedule, Expenses), layout, visual states, interaction patterns
+- **MAP.md** - Map view with MapLibre GL JS, pin rendering, visual states, unlocated footer, pan-to-fit, testing
 - **TESTING.md** - E2E testing with Playwright, data attributes, test patterns, troubleshooting
 - **COLLABORATION.md** - Liveblocks setup, real-time sync, collaborative editing, presence/cursors, production deployment
 - **DEVELOPMENT.md** - Code style, component patterns, testing approach, file organization, common pitfalls

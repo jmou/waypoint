@@ -49,7 +49,7 @@ src/
 - **Tree views**: Places and Experiences hierarchies with drag-and-drop reparenting.
 - **Schedule view**: Chronological list, drag-to-reschedule, inline time editing, timezone picker.
 - **Expenses view**: Filtered expense list, inline amount editing, multi-currency totals.
-- **Map view**: Leaflet integration with entity pins, selection/highlight states, unlocated footer.
+- **Map view**: MapLibre GL JS integration with entity pins, selection/highlight states, unlocated footer.
 - **Real-time collaboration**: Liveblocks integration for entity sync, collaborative editing, and presence.
 
 ## Documentation
@@ -60,6 +60,7 @@ src/
 - [docs/DATA_MODEL.md](./docs/DATA_MODEL.md) - Entity types, relationships, store architecture
 - [docs/EDITOR.md](./docs/EDITOR.md) - Notes editor, chips, slash commands
 - [docs/VIEWS.md](./docs/VIEWS.md) - UI views and interactions
+- [docs/MAP.md](./docs/MAP.md) - Map view with MapLibre GL JS
 - [docs/TESTING.md](./docs/TESTING.md) - E2E testing with Playwright
 - [docs/COLLABORATION.md](./docs/COLLABORATION.md) - Real-time features with Liveblocks
 
