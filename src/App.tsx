@@ -11,8 +11,11 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useEntityStore } from "./entities/store";
 import { useSelectionStore } from "./entities/selection";
 import { computeHighlighted } from "./entities/helpers";
+import { isExperience, CURRENCY_SYMBOLS, Entity } from "./entities/types";
 import { SEED_ENTITIES, SEED_TRIP, SEED_DOCUMENT } from "./entities/seed";
 import { NotesEditor } from "./editor/NotesEditor";
+import { NavigationProvider } from "./context/NavigationContext";
+import { Chip } from "./components/Chip";
 import "./styles.css";
 
 type LeftTab = "map" | "schedule" | "expenses";
@@ -45,70 +48,73 @@ export default function App() {
   if (!ready || !trip) return null;
 
   return (
-    <div className="app">
-      {/* ─── Title bar ─── */}
-      <header className="titlebar">
-        <span className="titlebar__name">{trip.name}</span>
-        <div style={{ flex: 1 }} />
-        <div className="titlebar__avatars">
-          <div className="avatar" style={{ background: "#d06840" }}>K</div>
-          <div className="avatar" style={{ background: "#4a8a5a", marginLeft: -4 }}>M</div>
-        </div>
-      </header>
+    <NavigationProvider onNavigate={handleNavigate}>
+      <div className="app">
+        {/* ─── Title bar ─── */}
+        <header className="titlebar">
+          <span className="titlebar__name">{trip.name}</span>
+          <div style={{ flex: 1 }} />
+          <div className="titlebar__avatars">
+            <div className="avatar" style={{ background: "#d06840" }}>K</div>
+            <div className="avatar" style={{ background: "#4a8a5a", marginLeft: -4 }}>M</div>
+          </div>
+        </header>
 
-      {/* ─── Two-pane body ─── */}
-      <div className="panes">
-        {/* Left pane: visualization */}
-        <div className="pane pane--left">
-          <TabBar
-            tabs={[
-              { id: "map", label: "Map" },
-              { id: "schedule", label: "Schedule" },
-              { id: "expenses", label: "Expenses" },
-            ]}
-            active={leftTab}
-            onSelect={(id) => setLeftTab(id as LeftTab)}
-          />
-          <div className="pane__content">
-            {leftTab === "map" && <PlaceholderView label="Map" description="Drag pins, see selections light up" />}
-            {leftTab === "schedule" && <PlaceholderView label="Schedule" description="Drag experiences between dates" />}
-            {leftTab === "expenses" && <PlaceholderView label="Expenses" description="Inline-editable amounts with currency picker" />}
+        {/* ─── Two-pane body ─── */}
+        <div className="panes">
+          {/* Left pane: visualization */}
+          <div className="pane pane--left">
+            <TabBar
+              tabs={[
+                { id: "map", label: "Map" },
+                { id: "schedule", label: "Schedule" },
+                { id: "expenses", label: "Expenses" },
+              ]}
+              active={leftTab}
+              onSelect={(id) => setLeftTab(id as LeftTab)}
+            />
+            <div className="pane__content">
+              {leftTab === "map" && <PlaceholderView label="Map" description="Drag pins, see selections light up" />}
+              {leftTab === "schedule" && <PlaceholderView label="Schedule" description="Drag experiences between dates" />}
+              {leftTab === "expenses" && <PlaceholderView label="Expenses" description="Inline-editable amounts with currency picker" />}
+            </div>
+          </div>
+
+          {/* Right pane: authoring */}
+          <div className="pane pane--right">
+            <TabBar
+              tabs={[
+                { id: "notes", label: "Notes" },
+                { id: "places", label: "Places" },
+                { id: "experiences", label: "Experiences" },
+              ]}
+              active={rightTab}
+              onSelect={(id) => setRightTab(id as RightTab)}
+            />
+            <div className="pane__content">
+              {rightTab === "notes" && (
+                <NotesEditor
+                  initialContent={SEED_DOCUMENT}
+                  onNavigate={handleNavigate}
+                />
+              )}
+              {rightTab === "places" && <PlaceholderView label="Places" description="Tree hierarchy with drag-and-drop" />}
+              {rightTab === "experiences" && <PlaceholderView label="Experiences" description="Tree hierarchy with inline metadata" />}
+            </div>
           </div>
         </div>
 
-        {/* Right pane: authoring */}
-        <div className="pane pane--right">
-          <TabBar
-            tabs={[
-              { id: "notes", label: "Notes" },
-              { id: "places", label: "Places" },
-              { id: "experiences", label: "Experiences" },
-            ]}
-            active={rightTab}
-            onSelect={(id) => setRightTab(id as RightTab)}
+        {/* ─── Selection popover ─── */}
+        {selected.size > 0 && (
+          <SelectionPopover
+            selected={selected}
+            entities={entities}
+            onNavigate={handleNavigate}
+            onClear={clearSelection}
           />
-          <div className="pane__content">
-            {rightTab === "notes" && (
-              <NotesEditor
-                initialContent={SEED_DOCUMENT}
-                onNavigate={handleNavigate}
-              />
-            )}
-            {rightTab === "places" && <PlaceholderView label="Places" description="Tree hierarchy with drag-and-drop" />}
-            {rightTab === "experiences" && <PlaceholderView label="Experiences" description="Tree hierarchy with inline metadata" />}
-          </div>
-        </div>
+        )}
       </div>
-
-      {/* ─── Selection popover ─── */}
-      {selected.size > 0 && (
-        <SelectionPopover
-          selected={selected}
-          entities={entities}
-          onClear={clearSelection}
-        />
-      )}
-    </div>
+    </NavigationProvider>
   );
 }
 
@@ -134,11 +140,12 @@ function TabBar({ tabs, active, onSelect }: {
   );
 }
 
-// ─── Selection popover (minimal — shows selected entity names) ───
+// ─── Selection popover (full Chip component with indicators) ───
 
-function SelectionPopover({ selected, entities, onClear }: {
+function SelectionPopover({ selected, entities, onNavigate, onClear }: {
   selected: Set<string>;
-  entities: Map<string, any>;
+  entities: Map<string, Entity>;
+  onNavigate: (view: string) => void;
   onClear: () => void;
 }) {
   const handleClick = useSelectionStore((s) => s.handleClick);
@@ -149,16 +156,32 @@ function SelectionPopover({ selected, entities, onClear }: {
       {ids.slice(0, 8).map((id) => {
         const ent = entities.get(id);
         if (!ent) return null;
-        const color = ent.type === "place" ? "var(--color-accent)" : "var(--color-blue)";
+
+        const isExp = isExperience(ent);
+        const hasPlace = isExp && ent.placeIds.length > 0;
+        let placeName: string | null = null;
+        if (hasPlace && isExp) {
+          const place = entities.get(ent.placeIds[0]);
+          if (place) placeName = place.name;
+        }
+        const currencySymbol = isExp ? CURRENCY_SYMBOLS[ent.currency] || "¥" : "¥";
+
         return (
-          <span
+          <Chip
             key={id}
-            className="selection-popover__chip"
-            style={{ background: color, borderColor: color }}
+            type={ent.type}
+            selected={true}
             onClick={() => handleClick(id, { ctrlKey: true, metaKey: true })}
+            scheduled={isExp && ent.schedule !== null}
+            amount={isExp ? ent.amount : null}
+            currencySymbol={currencySymbol}
+            placeName={placeName}
+            onClockClick={() => onNavigate("schedule")}
+            onExpenseClick={() => onNavigate("expenses")}
+            onPlaceIconClick={() => onNavigate("map")}
           >
             {ent.name}
-          </span>
+          </Chip>
         );
       })}
       {ids.length > 8 && (
