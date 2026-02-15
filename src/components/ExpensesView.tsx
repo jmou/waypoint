@@ -225,6 +225,7 @@ function ExpenseRow({
   onSelect,
   onUpdateAmount,
   onUpdateCurrency,
+  onRemoveAmount,
 }: {
   expense: Experience;
   parentName: string | null;
@@ -233,6 +234,7 @@ function ExpenseRow({
   onSelect: (id: EntityId, e: React.MouseEvent) => void;
   onUpdateAmount: (id: EntityId, amount: number) => void;
   onUpdateCurrency: (id: EntityId, currency: Currency) => void;
+  onRemoveAmount: (id: EntityId) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [amountValue, setAmountValue] = useState("");
@@ -252,13 +254,21 @@ function ExpenseRow({
   );
 
   const commitEdit = useCallback(() => {
+    const trimmed = amountValue.trim();
+    // If empty or zero, remove the amount
+    if (trimmed === "" || trimmed === "0") {
+      onRemoveAmount(expense.id);
+      setIsEditing(false);
+      setShowCurrencyPicker(false);
+      return;
+    }
     const parsed = parseFloat(amountValue);
-    if (!isNaN(parsed) && parsed >= 0) {
+    if (!isNaN(parsed) && parsed > 0) {
       onUpdateAmount(expense.id, parsed);
     }
     setIsEditing(false);
     setShowCurrencyPicker(false);
-  }, [amountValue, expense.id, onUpdateAmount]);
+  }, [amountValue, expense.id, onUpdateAmount, onRemoveAmount]);
 
   const cancelEdit = useCallback(() => {
     setIsEditing(false);
@@ -472,6 +482,258 @@ function ExpenseRow({
   );
 }
 
+// ─── Non-Expense Row ───
+
+function NonExpenseRow({
+  experience,
+  parentName,
+  isSelected,
+  isHighlighted,
+  onSelect,
+  onAddAmount,
+}: {
+  experience: Experience;
+  parentName: string | null;
+  isSelected: boolean;
+  isHighlighted: boolean;
+  onSelect: (id: EntityId, e: React.MouseEvent) => void;
+  onAddAmount: (id: EntityId, amount: number, currency: Currency) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [amountValue, setAmountValue] = useState("");
+  const [currency, setCurrency] = useState<Currency>("JPY");
+  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const editingContainerRef = useRef<HTMLDivElement>(null);
+
+  const startEditing = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAmountValue("");
+    setIsEditing(true);
+  }, []);
+
+  const commitEdit = useCallback(() => {
+    const trimmed = amountValue.trim();
+    if (trimmed === "" || trimmed === "0") {
+      setIsEditing(false);
+      setShowCurrencyPicker(false);
+      return;
+    }
+    const parsed = parseFloat(amountValue);
+    if (!isNaN(parsed) && parsed > 0) {
+      onAddAmount(experience.id, parsed, currency);
+    }
+    setIsEditing(false);
+    setShowCurrencyPicker(false);
+  }, [amountValue, experience.id, currency, onAddAmount]);
+
+  const cancelEdit = useCallback(() => {
+    setIsEditing(false);
+    setAmountValue("");
+    setShowCurrencyPicker(false);
+  }, []);
+
+  const handleBlur = useCallback(
+    (e: React.FocusEvent) => {
+      const relatedTarget = e.relatedTarget as HTMLElement | null;
+      if (relatedTarget && editingContainerRef.current?.contains(relatedTarget)) {
+        return;
+      }
+      commitEdit();
+    },
+    [commitEdit]
+  );
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isEditing]);
+
+  const isSel = isSelected;
+  const isHl = isHighlighted && !isSelected;
+
+  return (
+    <div key={experience.id} style={{ position: "relative" }}>
+      <div
+        data-non-expense-row={experience.id}
+        data-entity-id={experience.id}
+        data-selected={isSel ? "true" : undefined}
+        data-highlighted={isHl ? "true" : undefined}
+        onClick={(e) => onSelect(experience.id, e)}
+        style={{
+          padding: "8px 14px",
+          cursor: "pointer",
+          margin: "1px 8px",
+          background: isSel ? C.blue : isHl ? C.highlightBg : "transparent",
+          border: isSel
+            ? `1.5px solid ${C.blue}`
+            : isHl
+              ? `1px solid ${C.highlightBorder}`
+              : "1px solid transparent",
+          borderRadius: 6,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          transition: "all 0.12s",
+          fontFamily:
+            "'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif",
+        }}
+      >
+        {/* Name and parent */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            data-non-expense-name={experience.id}
+            style={{
+              fontWeight: 500,
+              fontSize: 12,
+              color: isSel ? "#fff" : C.text,
+            }}
+          >
+            {experience.name}
+          </div>
+          {parentName && (
+            <div
+              data-non-expense-parent={experience.id}
+              style={{
+                fontSize: 10,
+                color: isSel ? "rgba(255,255,255,0.6)" : C.blueText,
+                marginTop: 2,
+                opacity: isSel ? 1 : 0.7,
+              }}
+            >
+              in {parentName}
+            </div>
+          )}
+        </div>
+
+        {/* Amount (add mode) */}
+        {isEditing ? (
+          <div
+            ref={editingContainerRef}
+            data-non-expense-editing={experience.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
+              flexShrink: 0,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              data-currency-trigger={experience.id}
+              tabIndex={0}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowCurrencyPicker(!showCurrencyPicker);
+              }}
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: C.blue,
+                cursor: "pointer",
+                padding: "2px 4px",
+                borderRadius: 3,
+                transition: "background 0.1s",
+                background: "transparent",
+                border: "none",
+                fontFamily: "inherit",
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.background = C.surfaceAlt)
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.background = "transparent")
+              }
+            >
+              {CURRENCY_SYMBOLS[currency]}
+            </button>
+            <input
+              ref={inputRef}
+              data-amount-input={experience.id}
+              value={amountValue}
+              onChange={(e) => setAmountValue(e.target.value)}
+              onBlur={handleBlur}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  commitEdit();
+                } else if (e.key === "Escape") {
+                  cancelEdit();
+                }
+              }}
+              placeholder="0"
+              style={{
+                width: 72,
+                fontSize: 12,
+                fontWeight: 600,
+                color: C.text,
+                background: C.surfaceAlt,
+                border: `1px solid ${C.blue}`,
+                borderRadius: 4,
+                padding: "2px 6px",
+                outline: "none",
+                fontFamily: "inherit",
+                fontVariantNumeric: "tabular-nums",
+                textAlign: "right",
+              }}
+            />
+          </div>
+        ) : (
+          <span
+            data-non-expense-add-amount={experience.id}
+            onClick={startEditing}
+            style={{
+              color: isSel ? "rgba(255,255,255,0.5)" : C.textDim,
+              flexShrink: 0,
+              fontSize: 11,
+              cursor: "pointer",
+              padding: "2px 6px",
+              borderRadius: 4,
+              transition: "all 0.1s",
+              fontStyle: "italic",
+            }}
+            onMouseEnter={(e) => {
+              if (!isSel) {
+                e.currentTarget.style.background = C.surfaceAlt;
+                e.currentTarget.style.color = C.textMuted;
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isSel) {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = C.textDim;
+              }
+            }}
+          >
+            Add amount...
+          </span>
+        )}
+      </div>
+
+      {/* Currency picker dropdown */}
+      {showCurrencyPicker && (
+        <div
+          style={{
+            position: "absolute",
+            right: 8,
+            top: "100%",
+            marginTop: 2,
+            zIndex: 60,
+          }}
+        >
+          <CurrencyPicker
+            value={currency}
+            onSelect={(c) => setCurrency(c)}
+            onClose={() => setShowCurrencyPicker(false)}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Expenses View ───
 
 export function ExpensesView() {
@@ -486,13 +748,19 @@ export function ExpensesView() {
 
   // Filter expenses: experiences with amount != null
   const expenses: Experience[] = [];
+  const nonExpenses: Experience[] = [];
   for (const entity of entities.values()) {
-    if (isExperience(entity) && entity.amount != null) {
-      expenses.push(entity);
+    if (isExperience(entity)) {
+      if (entity.amount != null) {
+        expenses.push(entity);
+      } else {
+        nonExpenses.push(entity);
+      }
     }
   }
   // Sort by sortOrder for consistent display
   expenses.sort((a, b) => a.sortOrder - b.sortOrder);
+  nonExpenses.sort((a, b) => a.sortOrder - b.sortOrder);
 
   // Compute totals
   const totalByCurrency = new Map<Currency, number>();
@@ -555,6 +823,20 @@ export function ExpensesView() {
     [addExperience, updateExperience, trip]
   );
 
+  const onRemoveAmount = useCallback(
+    (id: EntityId) => {
+      updateExperience(id, { amount: null });
+    },
+    [updateExperience]
+  );
+
+  const onAddAmount = useCallback(
+    (id: EntityId, amount: number, currency: Currency) => {
+      updateExperience(id, { amount, currency });
+    },
+    [updateExperience]
+  );
+
   return (
     <div
       data-expenses-view
@@ -581,6 +863,7 @@ export function ExpensesView() {
             onSelect={onSelect}
             onUpdateAmount={onUpdateAmount}
             onUpdateCurrency={onUpdateCurrency}
+            onRemoveAmount={onRemoveAmount}
           />
         );
       })}
@@ -626,6 +909,41 @@ export function ExpensesView() {
           <span data-total-amount>{totalStr}</span>
         </div>
       </div>
+
+      {/* Non-expense experiences section */}
+      {nonExpenses.length > 0 && (
+        <>
+          <div
+            data-non-expenses-header
+            style={{
+              margin: "16px 16px 8px",
+              fontSize: 11,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+              color: C.textDim,
+            }}
+          >
+            Experiences without expenses
+          </div>
+          {nonExpenses.map((exp) => {
+            const parent = exp.parentId ? entities.get(exp.parentId) : null;
+            const parentName = parent ? parent.name : null;
+
+            return (
+              <NonExpenseRow
+                key={exp.id}
+                experience={exp}
+                parentName={parentName}
+                isSelected={selected.has(exp.id)}
+                isHighlighted={highlighted.has(exp.id)}
+                onSelect={onSelect}
+                onAddAmount={onAddAmount}
+              />
+            );
+          })}
+        </>
+      )}
     </div>
   );
 }

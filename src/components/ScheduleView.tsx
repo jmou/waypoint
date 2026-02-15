@@ -71,6 +71,62 @@ function fmtFullDay(d: string): string {
   });
 }
 
+/**
+ * Normalize time input to consistent 12-hour format with lowercase am/pm.
+ * Examples:
+ *   "1pm" → "1:00 pm"
+ *   "1:30PM" → "1:30 pm"
+ *   "13:00" → "1:00 pm" (converts 24-hour to 12-hour)
+ *   "9:30" → "9:30 am" (assumes am for morning hours)
+ *   "0:00" → "12:00 am"
+ *   "12:00" → "12:00 pm"
+ */
+function normalizeTime(input: string): string {
+  const trimmed = input.trim().toLowerCase();
+  if (!trimmed) return "";
+
+  // Pattern: optional hour, optional colon+minutes, optional space, optional am/pm
+  // Matches: "1pm", "1:30pm", "1:30 pm", "13:00", "9:30", etc.
+  const match = trimmed.match(/^(\d{1,2})(?::(\d{2}))?(?:\s*)?(am|pm)?$/);
+
+  if (!match) {
+    // If it doesn't match our expected patterns, return as-is (user can type freeform)
+    return input.trim();
+  }
+
+  let [, hourStr, minutes = "00", period] = match;
+  let hour = parseInt(hourStr, 10);
+
+  // Validate hour and minutes
+  if (hour > 23 || parseInt(minutes, 10) > 59) {
+    return input.trim(); // Invalid time, return as-is
+  }
+
+  // Convert to 12-hour format if no period specified
+  if (!period) {
+    if (hour === 0) {
+      hour = 12;
+      period = "am";
+    } else if (hour < 12) {
+      period = "am";
+    } else if (hour === 12) {
+      period = "pm";
+    } else {
+      hour = hour - 12;
+      period = "pm";
+    }
+  } else {
+    // Period was specified - normalize hour if needed
+    if (hour === 0) {
+      hour = 12;
+    } else if (hour > 12) {
+      hour = hour - 12;
+    }
+  }
+
+  return `${hour}:${minutes} ${period}`;
+}
+
 function generateDateRange(start: string, end: string): string[] {
   const dates: string[] = [];
   const s = new Date(start + "T00:00:00");
@@ -152,10 +208,10 @@ export function ScheduleView() {
     (expId: string, newTime: string) => {
       const entity = entities.get(expId);
       if (!entity || !isExperience(entity) || !entity.schedule) return;
-      const trimmed = newTime.trim();
-      if (trimmed) {
+      const normalized = normalizeTime(newTime);
+      if (normalized) {
         updateExperience(expId, {
-          schedule: { ...entity.schedule, time: trimmed },
+          schedule: { ...entity.schedule, time: normalized },
         });
       }
       setEditingTime(null);
@@ -604,7 +660,7 @@ function ScheduleRow({
           style={{
             fontSize: 11,
             color: isSel ? "rgba(255,255,255,0.7)" : C.textMuted,
-            width: 64,
+            width: 70,
             flexShrink: 0,
             fontVariantNumeric: "tabular-nums",
             cursor: "text",
