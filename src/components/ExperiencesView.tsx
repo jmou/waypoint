@@ -42,11 +42,28 @@ function renderExperienceNode(
   // Resolve associated place (first one)
   const placeName = exp.placeIds[0] ? entities.get(exp.placeIds[0])?.name : null;
   const schedDate = exp.schedule?.date;
+  const isExpense = exp.amount != null;
 
   return (
     <>
+      {/* Expense/non-expense indicator */}
+      <span
+        data-row-indicator
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          fontSize: isExpense ? 10 : 14,
+          fontWeight: isExpense ? 700 : 400,
+          opacity: state.isSelected ? 0.9 : 0.6,
+          marginRight: 2,
+        }}
+      >
+        {isExpense ? "¥" : "•"}
+      </span>
+
       {/* Name */}
       <span
+        data-row-name
         style={{
           fontWeight: state.hasChildren ? 600 : 400,
           flex: 1,
@@ -67,6 +84,7 @@ function renderExperienceNode(
       >
         {placeName && (
           <span
+            data-row-place
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -75,15 +93,18 @@ function renderExperienceNode(
               color: state.isSelected ? "rgba(255,255,255,0.7)" : "#a33d22", // Place accent color
             }}
           >
-            <PinIcon
-              size={9}
-              color={state.isSelected ? "rgba(255,255,255,0.7)" : "#a33d22"}
-            />
+            <span data-icon="pin">
+              <PinIcon
+                size={9}
+                color={state.isSelected ? "rgba(255,255,255,0.7)" : "#a33d22"}
+              />
+            </span>
             {placeName}
           </span>
         )}
         {schedDate && (
           <span
+            data-row-schedule
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -92,10 +113,12 @@ function renderExperienceNode(
               color: state.isSelected ? "rgba(255,255,255,0.6)" : EXPERIENCE_COLORS.textMuted,
             }}
           >
-            <ClockIcon
-              size={8}
-              color={state.isSelected ? "rgba(255,255,255,0.6)" : EXPERIENCE_COLORS.textMuted}
-            />
+            <span data-icon="clock">
+              <ClockIcon
+                size={8}
+                color={state.isSelected ? "rgba(255,255,255,0.6)" : EXPERIENCE_COLORS.textMuted}
+              />
+            </span>
             {fmtDate(schedDate)}
           </span>
         )}

@@ -43,6 +43,7 @@ export function InlineAddRow({ placeholder, onAdd }: InlineAddRowProps) {
   if (!active) {
     return (
       <div
+        data-inline-add
         onClick={handleActivate}
         style={{
           paddingLeft: 12,
@@ -73,6 +74,7 @@ export function InlineAddRow({ placeholder, onAdd }: InlineAddRowProps) {
 
   return (
     <div
+      data-inline-add
       style={{
         paddingLeft: 16,
         paddingRight: 12,

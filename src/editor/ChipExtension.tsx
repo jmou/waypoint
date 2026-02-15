@@ -139,6 +139,7 @@ function EntityChipView({ node }: { node: { attrs: Record<string, any> } }) {
   return (
     <NodeViewWrapper as="span" style={{ display: "inline" }}>
       <Chip
+        entityId={entityId}
         type={entity.type}
         selected={isSelected}
         highlighted={isHighlighted}

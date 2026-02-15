@@ -75,6 +75,7 @@ export function EntityTreeView<T extends Entity>({
 
   return (
     <div
+      data-tree-view={entityType === "place" ? "places" : "experiences"}
       style={{
         padding: 8,
         paddingLeft: 28,

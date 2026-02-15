@@ -1,6 +1,6 @@
 import { Fragment, useState, type ReactNode } from "react";
 import type { Entity, EntityId, EntityMap } from "../../entities";
-import { getChildren } from "../../entities";
+import { getChildren, isExperience } from "../../entities";
 import { DropZone } from "./DropZone";
 import { InlineAddRow } from "./InlineAddRow";
 import type { TreeColors, NodeRenderState } from "./types";
@@ -116,6 +116,14 @@ export function TreeNode<T extends Entity>({
     <>
       {/* Outer container for drop-on-node (reparent) */}
       <div
+        data-tree-node
+        data-entity-id={entity.id}
+        data-entity-type={entity.type}
+        data-parent-id={entity.parentId || undefined}
+        data-has-children={hasChildren ? "true" : "false"}
+        data-expanded={open ? "true" : "false"}
+        data-selected={isSelected ? "true" : undefined}
+        data-highlighted={isHighlighted ? "true" : undefined}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDropOnNode}
@@ -129,6 +137,7 @@ export function TreeNode<T extends Entity>({
         {/* Expand toggle */}
         {hasChildren && (
           <button
+            data-toggle
             onClick={handleToggle}
             style={{
               background: "none",
@@ -153,6 +162,17 @@ export function TreeNode<T extends Entity>({
 
         {/* Draggable chip */}
         <div
+          data-tree-row
+          data-entity-type={entity.type}
+          data-is-expense={
+            isExperience(entity) && entity.amount != null ? "true" : "false"
+          }
+          data-has-place={
+            isExperience(entity) && entity.placeIds?.length > 0 ? "true" : "false"
+          }
+          data-has-schedule={
+            isExperience(entity) && entity.schedule ? "true" : "false"
+          }
           draggable
           onDragStart={handleDragStart}
           onClick={handleNodeClick}

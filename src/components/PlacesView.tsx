@@ -30,15 +30,19 @@ function renderPlaceNode(place: Place, state: NodeRenderState) {
   return (
     <>
       <span
+        data-row-indicator
         style={{
           display: "inline-flex",
           alignItems: "center",
           opacity: state.isSelected ? 0.9 : unlocated ? 0.35 : 0.6,
         }}
       >
-        <PinIcon size={11} color={state.isSelected ? "#fff" : PLACE_COLORS.accent} />
+        <span data-icon="pin">
+          <PinIcon size={11} color={state.isSelected ? "#fff" : PLACE_COLORS.accent} />
+        </span>
       </span>
       <span
+        data-row-name
         style={{
           color: state.isSelected ? "#fff" : unlocated ? PLACE_COLORS.textDim : PLACE_COLORS.accent,
           fontWeight: state.hasChildren ? 600 : 400,
@@ -49,6 +53,7 @@ function renderPlaceNode(place: Place, state: NodeRenderState) {
       </span>
       {unlocated && !state.isSelected && (
         <span
+          data-no-location
           style={{
             fontSize: 9,
             color: PLACE_COLORS.textDim,

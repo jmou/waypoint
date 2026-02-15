@@ -65,8 +65,9 @@ export default function App() {
         {/* ─── Two-pane body ─── */}
         <div className="panes">
           {/* Left pane: visualization */}
-          <div className="pane pane--left">
+          <div className="pane pane--left" data-pane="left">
             <TabBar
+              pane="left"
               tabs={[
                 { id: "map", label: "Map" },
                 { id: "schedule", label: "Schedule" },
@@ -83,8 +84,9 @@ export default function App() {
           </div>
 
           {/* Right pane: authoring */}
-          <div className="pane pane--right">
+          <div className="pane pane--right" data-pane="right">
             <TabBar
+              pane="right"
               tabs={[
                 { id: "notes", label: "Notes" },
                 { id: "places", label: "Places" },
@@ -122,7 +124,8 @@ export default function App() {
 
 // ─── Tab bar ───
 
-function TabBar({ tabs, active, onSelect }: {
+function TabBar({ pane, tabs, active, onSelect }: {
+  pane: string;
   tabs: { id: string; label: string }[];
   active: string;
   onSelect: (id: string) => void;
@@ -133,6 +136,8 @@ function TabBar({ tabs, active, onSelect }: {
         <button
           key={tab.id}
           className={`tabbar__tab ${active === tab.id ? "tabbar__tab--active" : ""}`}
+          data-tab={tab.id}
+          data-active={active === tab.id ? "true" : undefined}
           onClick={() => onSelect(tab.id)}
         >
           {tab.label}
@@ -154,7 +159,7 @@ function SelectionPopover({ selected, entities, onNavigate, onClear }: {
   const ids = Array.from(selected);
 
   return (
-    <div className="selection-popover">
+    <div className="selection-popover" data-selection-popover>
       {ids.slice(0, 8).map((id) => {
         const ent = entities.get(id);
         if (!ent) return null;
@@ -171,6 +176,7 @@ function SelectionPopover({ selected, entities, onNavigate, onClear }: {
         return (
           <Chip
             key={id}
+            entityId={id}
             type={ent.type}
             selected={true}
             onClick={() => handleClick(id, { ctrlKey: true, metaKey: true })}
@@ -187,11 +193,11 @@ function SelectionPopover({ selected, entities, onNavigate, onClear }: {
         );
       })}
       {ids.length > 8 && (
-        <span style={{ color: "var(--color-text-dim)", fontSize: 11 }}>
+        <span data-overflow-count style={{ color: "var(--color-text-dim)", fontSize: 11 }}>
           +{ids.length - 8} more
         </span>
       )}
-      <span className="selection-popover__close" onClick={onClear} title="Clear selection">
+      <span className="selection-popover__close" data-action="clear" onClick={onClear} title="Clear selection">
         ×
       </span>
     </div>

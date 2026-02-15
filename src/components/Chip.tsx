@@ -49,6 +49,8 @@ export function ClockIcon({ size = 10, color = "currentColor" }: { size?: number
 export interface ChipProps {
   children: React.ReactNode;
   type: "place" | "experience";
+  /** Entity ID for data attribute */
+  entityId?: string;
   selected?: boolean;
   highlighted?: boolean;
   small?: boolean;
@@ -130,6 +132,7 @@ function IndicatorSection({
 export function Chip({
   children,
   type,
+  entityId,
   selected: sel = false,
   highlighted: hl = false,
   small = false,
@@ -149,16 +152,25 @@ export function Chip({
   const dividerColor = showSel ? "rgba(255,255,255,0.25)" : `${color}20`;
 
   const divider = () => (
-    <span style={{
-      width: 1,
-      alignSelf: "stretch",
-      background: dividerColor,
-      margin: "0 1px",
-    }} />
+    <span
+      data-separator
+      style={{
+        width: 1,
+        alignSelf: "stretch",
+        background: dividerColor,
+        margin: "0 1px",
+      }}
+    />
   );
 
   return (
-    <span style={{
+    <span
+      data-entity-chip
+      data-entity-id={entityId}
+      data-entity-type={type}
+      data-selected={showSel ? "true" : undefined}
+      data-highlighted={showHL ? "true" : undefined}
+      style={{
       display: "inline-flex",
       alignItems: "center",
       gap: 0,
@@ -183,26 +195,31 @@ export function Chip({
     }}>
       {/* Place chip: icon | name */}
       {type === "place" && (
-        <IndicatorSection
-          onClick={onPlaceIconClick}
-          selected={showSel}
-          color={fg}
-          defaultOpacity={showSel ? 0.85 : 0.65}
-          hoverBgColor={`${color}0a`}
-          style={{
-            padding: "2px 4px 2px 5px",
-            borderRight: `1px solid ${dividerColor}`,
-          }}
-        >
-          <PinIcon size={10} color={fg} />
-        </IndicatorSection>
+        <>
+          <IndicatorSection
+            onClick={onPlaceIconClick}
+            selected={showSel}
+            color={fg}
+            defaultOpacity={showSel ? 0.85 : 0.65}
+            hoverBgColor={`${color}0a`}
+            style={{
+              padding: "2px 4px 2px 5px",
+            }}
+          >
+            <span data-icon="pin">
+              <PinIcon size={10} color={fg} />
+            </span>
+          </IndicatorSection>
+          {divider()}
+        </>
       )}
 
       {/* Name */}
       <span
+        data-chip-name
         onClick={(e) => { e.stopPropagation(); onClick?.(e); }}
         style={{
-          padding: type === "place" ? "1px 6px 1px 5px" : "1px 4px 1px 6px",
+          padding: type === "place" ? "1px 5px 1px 5px" : "1px 4px 1px 6px",
         }}
       >
         {children}
@@ -212,16 +229,24 @@ export function Chip({
       {placeName && type === "experience" && (
         <>
           {divider()}
-          <IndicatorSection
-            onClick={onPlaceIconClick}
-            selected={showSel}
-            color={showSel ? "rgba(255,255,255,0.8)" : ACCENT}
-            defaultOpacity={showSel ? 0.9 : 0.7}
-            hoverBgColor={`${ACCENT}08`}
+          <span
+            data-indicator="pin"
+            onClick={(e) => { e.stopPropagation(); onPlaceIconClick?.(e); }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "2px 4px",
+              color: showSel ? "rgba(255,255,255,0.8)" : ACCENT,
+              cursor: "pointer",
+              opacity: showSel ? 0.9 : 0.7,
+              transition: "opacity 0.1s",
+            }}
             title={placeName}
           >
-            <PinIcon size={10} color={showSel ? "rgba(255,255,255,0.8)" : ACCENT} />
-          </IndicatorSection>
+            <span data-icon="pin">
+              <PinIcon size={10} color={showSel ? "rgba(255,255,255,0.8)" : ACCENT} />
+            </span>
+          </span>
         </>
       )}
 
@@ -229,15 +254,23 @@ export function Chip({
       {scheduled && (
         <>
           {divider()}
-          <IndicatorSection
-            onClick={onClockClick}
-            selected={showSel}
-            color={showSel ? "rgba(255,255,255,0.8)" : BLUE_TEXT}
-            defaultOpacity={showSel ? 0.9 : 0.7}
-            hoverBgColor={`#2d5f8208`}
+          <span
+            data-indicator="clock"
+            onClick={(e) => { e.stopPropagation(); onClockClick?.(e); }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              padding: "2px 4px",
+              color: showSel ? "rgba(255,255,255,0.8)" : BLUE_TEXT,
+              cursor: "pointer",
+              opacity: showSel ? 0.9 : 0.7,
+              transition: "opacity 0.1s",
+            }}
           >
-            <ClockIcon size={9} color={showSel ? "rgba(255,255,255,0.8)" : BLUE_TEXT} />
-          </IndicatorSection>
+            <span data-icon="clock">
+              <ClockIcon size={9} color={showSel ? "rgba(255,255,255,0.8)" : BLUE_TEXT} />
+            </span>
+          </span>
         </>
       )}
 
@@ -253,7 +286,9 @@ export function Chip({
             hoverBgColor={`#2d5f8208`}
             style={{ padding: "2px 5px 2px 4px", fontSize: 10, fontWeight: 700 }}
           >
-            {currencySymbol}{amount.toLocaleString()}
+            <span data-indicator="amount">
+              {currencySymbol}{amount.toLocaleString()}
+            </span>
           </IndicatorSection>
         </>
       )}

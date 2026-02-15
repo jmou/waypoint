@@ -37,6 +37,9 @@ export function DropZone({ parentId, index, onMoveTo }: DropZoneProps) {
 
   return (
     <div
+      data-drop-zone
+      data-parent-id={parentId || undefined}
+      data-index={index}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
