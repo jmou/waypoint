@@ -24,7 +24,10 @@ import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import React from "react";
 import { useEntityStore } from "../entities/store";
 import { useSelectionStore } from "../entities/selection";
-import { isExperience, isPlace } from "../entities/types";
+import { computeHighlighted } from "../entities/helpers";
+import { isExperience, CURRENCY_SYMBOLS } from "../entities/types";
+import { Chip } from "../components/Chip";
+import { useNavigate } from "../context/NavigationContext";
 
 // ─── TipTap Node definition ───
 
@@ -98,16 +101,14 @@ export const EntityChipExtension = Node.create<EntityChipOptions>({
 
 // ─── React component rendered inside the editor ───
 
-interface EntityChipViewProps {
-  node: { attrs: { entityId: string } };
-  selected: boolean;
-}
-
-function EntityChipView({ node }: EntityChipViewProps) {
+function EntityChipView({ node }: { node: { attrs: Record<string, any> } }) {
   const entityId = node.attrs.entityId;
   const entity = useEntityStore((s) => s.entities.get(entityId));
+  const entities = useEntityStore((s) => s.entities);
   const isSelected = useSelectionStore((s) => s.selected.has(entityId));
+  const selected = useSelectionStore((s) => s.selected);
   const handleClick = useSelectionStore((s) => s.handleClick);
+  const navigate = useNavigate();
 
   if (!entity) {
     return (
@@ -117,115 +118,50 @@ function EntityChipView({ node }: EntityChipViewProps) {
     );
   }
 
-  const type = entity.type;
-  const color = type === "place" ? "var(--color-accent)" : "var(--color-blue)";
+  const highlighted = computeHighlighted(entities, selected);
+  const isHighlighted = highlighted.has(entityId);
+
   const isExp = isExperience(entity);
   const hasSchedule = isExp && entity.schedule !== null;
   const hasAmount = isExp && entity.amount !== null;
   const hasPlace = isExp && entity.placeIds.length > 0;
 
-  return (
-    <NodeViewWrapper
-      as="span"
-      className={`entity-chip entity-chip--${type} ${isSelected ? "entity-chip--selected" : ""}`}
-      data-entity-type={type}
-    >
-      {/* Place icon (for place chips, or place indicator on experience chips) */}
-      {type === "place" && (
-        <span
-          className="entity-chip__icon entity-chip__icon--place"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleClick(entityId, e);
-            // onNavigate("map") would be called here via context
-          }}
-          title="Open in map"
-        >
-          <PinSvg />
-        </span>
-      )}
+  // Resolve place name for experience chips
+  let placeName: string | null = null;
+  if (hasPlace && isExp) {
+    const place = entities.get(entity.placeIds[0]);
+    if (place) placeName = place.name;
+  }
 
-      {/* Name */}
-      <span
-        className="entity-chip__name"
-        onClick={(e) => {
-          e.stopPropagation();
+  // Currency symbol
+  const currencySymbol = isExp ? CURRENCY_SYMBOLS[entity.currency] || "$" : "$";
+
+  return (
+    <NodeViewWrapper as="span" style={{ display: "inline" }}>
+      <Chip
+        type={entity.type}
+        selected={isSelected}
+        highlighted={isHighlighted}
+        onClick={(e) => handleClick(entityId, e)}
+        onPlaceIconClick={(e) => {
           handleClick(entityId, e);
+          navigate("map");
         }}
+        onClockClick={(e) => {
+          handleClick(entityId, e);
+          navigate("schedule");
+        }}
+        onExpenseClick={(e) => {
+          handleClick(entityId, e);
+          navigate("expenses");
+        }}
+        scheduled={hasSchedule}
+        amount={hasAmount && isExp ? entity.amount : null}
+        currencySymbol={currencySymbol}
+        placeName={placeName}
       >
         {entity.name}
-      </span>
-
-      {/* Experience place indicator */}
-      {hasPlace && (
-        <>
-          <span className="entity-chip__divider" />
-          <span
-            className="entity-chip__icon entity-chip__icon--exp-place"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleClick(entityId, e);
-            }}
-            title="Associated place"
-          >
-            <PinSvg />
-          </span>
-        </>
-      )}
-
-      {/* Schedule indicator */}
-      {hasSchedule && (
-        <>
-          <span className="entity-chip__divider" />
-          <span
-            className="entity-chip__icon entity-chip__icon--clock"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleClick(entityId, e);
-            }}
-            title="Scheduled"
-          >
-            <ClockSvg />
-          </span>
-        </>
-      )}
-
-      {/* Amount indicator */}
-      {hasAmount && isExperience(entity) && (
-        <>
-          <span className="entity-chip__divider" />
-          <span
-            className="entity-chip__icon entity-chip__icon--amount"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleClick(entityId, e);
-            }}
-            title="Expense"
-          >
-            ¥{entity.amount!.toLocaleString()}
-          </span>
-        </>
-      )}
+      </Chip>
     </NodeViewWrapper>
-  );
-}
-
-// ─── Inline SVG icons ───
-
-function PinSvg() {
-  return (
-    <svg width={10} height={10} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M8 1.5C5.5 1.5 3.5 3.5 3.5 6c0 3.5 4.5 8.5 4.5 8.5s4.5-5 4.5-8.5c0-2.5-2-4.5-4.5-4.5z" />
-      <circle cx="8" cy="6" r="1.5" />
-    </svg>
-  );
-}
-
-function ClockSvg() {
-  return (
-    <svg width={9} height={9} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-      <circle cx="8" cy="8" r="6.5" />
-      <path d="M8 4.5V8l2.5 1.5" />
-    </svg>
   );
 }
