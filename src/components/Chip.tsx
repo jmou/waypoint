@@ -139,7 +139,7 @@ export function Chip({
   onExpenseClick,
   scheduled,
   amount,
-  currencySymbol = "¥",
+  currencySymbol = "$",
   placeName,
 }: ChipProps) {
   const color = TYPE_COLORS[type] || "#555249";

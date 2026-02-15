@@ -164,7 +164,7 @@ function SelectionPopover({ selected, entities, onNavigate, onClear }: {
           const place = entities.get(ent.placeIds[0]);
           if (place) placeName = place.name;
         }
-        const currencySymbol = isExp ? CURRENCY_SYMBOLS[ent.currency] || "¥" : "¥";
+        const currencySymbol = isExp ? CURRENCY_SYMBOLS[ent.currency] || "$" : "$";
 
         return (
           <Chip

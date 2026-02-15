@@ -134,7 +134,7 @@ function EntityChipView({ node }: { node: { attrs: Record<string, any> } }) {
   }
 
   // Currency symbol
-  const currencySymbol = isExp ? CURRENCY_SYMBOLS[entity.currency] || "¥" : "¥";
+  const currencySymbol = isExp ? CURRENCY_SYMBOLS[entity.currency] || "$" : "$";
 
   return (
     <NodeViewWrapper as="span" style={{ display: "inline" }}>
