@@ -1,0 +1,442 @@
+/**
+ * Waypoint design tokens and chip styles.
+ *
+ * Uses CSS custom properties so the same values are available in both
+ * CSS and inline styles (via var(--color-xxx)).
+ */
+
+/* ─── Design tokens ─── */
+
+:root {
+  --color-bg: #f8f7f5;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f0efec;
+  --color-border: rgba(0, 0, 0, 0.09);
+  --color-border-strong: rgba(0, 0, 0, 0.16);
+  --color-text: #1a1917;
+  --color-text-muted: #555249;
+  --color-text-dim: #8a8680;
+
+  --color-accent: #a33d22;
+  --color-blue: #2d5f82;
+  --color-blue-text: #1e4a6a;
+
+  --color-highlight-bg: rgba(45, 95, 130, 0.08);
+  --color-highlight-border: rgba(45, 95, 130, 0.28);
+  --color-highlight-place-bg: rgba(163, 61, 34, 0.06);
+  --color-highlight-place-border: rgba(163, 61, 34, 0.22);
+
+  --font-ui: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-prose: "Georgia", "Times New Roman", serif;
+}
+
+/* ─── Editor container ─── */
+
+.notes-editor-container {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+}
+
+.waypoint-notes-editor {
+  max-width: 560px;
+  font-family: var(--font-prose);
+  font-size: 14px;
+  line-height: 1.85;
+  color: var(--color-text-muted);
+  outline: none;
+}
+
+.waypoint-notes-editor p {
+  margin: 0 0 4px;
+  padding: 4px 0;
+}
+
+.waypoint-notes-editor code {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  background: var(--color-surface-alt);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--color-border);
+}
+
+/* ─── Entity chips (inside editor) ─── */
+
+.entity-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border-radius: 5px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  font-size: 11.5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s;
+  overflow: hidden;
+  vertical-align: baseline;
+  position: relative;
+  top: -0.5px;
+}
+
+/* ─── Type-specific base styles ─── */
+
+.entity-chip--place {
+  color: var(--color-accent);
+  background: rgba(163, 61, 34, 0.05);
+  border: 1px solid rgba(163, 61, 34, 0.10);
+}
+
+.entity-chip--experience {
+  color: var(--color-blue);
+  background: rgba(45, 95, 130, 0.05);
+  border: 1px solid rgba(45, 95, 130, 0.10);
+}
+
+/* ─── Highlighted state ─── */
+
+.entity-chip--place.entity-chip--highlighted {
+  background: rgba(163, 61, 34, 0.12);
+  border: 1.5px solid rgba(163, 61, 34, 0.50);
+}
+
+.entity-chip--experience.entity-chip--highlighted {
+  background: rgba(45, 95, 130, 0.12);
+  border: 1.5px solid rgba(45, 95, 130, 0.50);
+}
+
+/* ─── Selected state (inverted) ─── */
+
+.entity-chip--place.entity-chip--selected {
+  background: var(--color-accent);
+  border: 1.5px solid var(--color-accent);
+  color: #fff;
+}
+
+.entity-chip--experience.entity-chip--selected {
+  background: var(--color-blue);
+  border: 1.5px solid var(--color-blue);
+  color: #fff;
+}
+
+/* ─── Chip internal elements ─── */
+
+.entity-chip__name {
+  padding: 1px 6px;
+  cursor: pointer;
+}
+
+.entity-chip--place .entity-chip__name {
+  padding: 1px 6px 1px 5px;
+}
+
+.entity-chip__icon {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 4px;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity 0.1s, background 0.1s;
+}
+
+.entity-chip__icon:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.entity-chip--selected .entity-chip__icon:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.entity-chip__icon--place {
+  padding: 2px 4px 2px 5px;
+  border-right: 1px solid rgba(163, 61, 34, 0.18);
+}
+
+.entity-chip--selected .entity-chip__icon--place {
+  border-right-color: rgba(255, 255, 255, 0.25);
+  opacity: 0.85;
+}
+
+.entity-chip__icon--exp-place {
+  color: var(--color-accent);
+}
+
+.entity-chip--selected .entity-chip__icon--exp-place {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.entity-chip__icon--clock {
+  color: var(--color-blue-text);
+}
+
+.entity-chip--selected .entity-chip__icon--clock {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.entity-chip__icon--amount {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-blue-text);
+  padding: 2px 5px 2px 4px;
+}
+
+.entity-chip--selected .entity-chip__icon--amount {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.entity-chip__divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 0 1px;
+}
+
+.entity-chip--place .entity-chip__divider {
+  background: rgba(163, 61, 34, 0.20);
+}
+
+.entity-chip--experience .entity-chip__divider {
+  background: rgba(45, 95, 130, 0.20);
+}
+
+.entity-chip--selected .entity-chip__divider {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ─── Missing/deleted entity ─── */
+
+.entity-chip--missing {
+  color: var(--color-text-dim);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  padding: 1px 6px;
+  font-style: italic;
+  font-size: 10px;
+}
+
+/* ─── Note block highlighting ─── */
+
+.notes-block {
+  padding: 8px 12px;
+  margin-bottom: 2px;
+  border-radius: 6px;
+  border-left: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.notes-block--has-selected {
+  background: rgba(45, 95, 130, 0.07);
+  border-left-color: rgba(45, 95, 130, 0.37);
+}
+
+.notes-block--has-highlighted {
+  background: var(--color-highlight-bg);
+  border-left-color: var(--color-highlight-border);
+}
+
+/* ─── Slash command popover ─── */
+
+.slash-popover {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  padding: 6px 0;
+  width: 280px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  max-height: 300px;
+  overflow: auto;
+  font-family: var(--font-ui);
+}
+
+.slash-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.slash-item:hover,
+.slash-item--active {
+  background: var(--color-surface-alt);
+}
+
+/* ─── App shell ─── */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+.app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+}
+
+/* ─── Title bar ─── */
+
+.titlebar {
+  height: 42px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+  flex-shrink: 0;
+  background: var(--color-surface);
+}
+
+.titlebar__name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.titlebar__avatars {
+  display: flex;
+}
+
+.avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  border: 2px solid var(--color-surface);
+}
+
+/* ─── Panes ─── */
+
+.panes {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pane--left {
+  border-right: 1px solid var(--color-border);
+}
+
+.pane__content {
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ─── Tab bar ─── */
+
+.tabbar {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--color-border);
+  height: 36px;
+  background: var(--color-bg);
+  flex-shrink: 0;
+  padding-left: 4px;
+}
+
+.tabbar__tab {
+  background: none;
+  border: none;
+  padding: 0 14px;
+  height: 100%;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-dim);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.1s;
+}
+
+.tabbar__tab:hover {
+  color: var(--color-text-muted);
+}
+
+.tabbar__tab--active {
+  font-weight: 600;
+  color: var(--color-text);
+  border-bottom-color: var(--color-blue);
+}
+
+/* ─── Selection popover ─── */
+
+.selection-popover {
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: 10px;
+  padding: 7px 10px;
+  max-width: 600px;
+  z-index: 100;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.selection-popover__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-weight: 600;
+  font-size: 11.5px;
+  color: #fff;
+  border: 1.5px solid;
+  cursor: pointer;
+  transition: opacity 0.1s;
+}
+
+.selection-popover__chip:hover {
+  opacity: 0.85;
+}
+
+.selection-popover__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--color-text-dim);
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-left: 2px;
+  transition: all 0.1s;
+}
+
+.selection-popover__close:hover {
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
