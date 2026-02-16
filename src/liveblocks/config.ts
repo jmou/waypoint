@@ -17,7 +17,9 @@ import { createClient, LiveMap, LiveObject } from "@liveblocks/client";
 import { createRoomContext } from "@liveblocks/react";
 import type { Entity, Trip, EntityId } from "../entities/types";
 
-export const LIVEBLOCKS_ENABLED = !!import.meta.env.VITE_LIVEBLOCKS_PUBLIC_KEY;
+export const LIVEBLOCKS_ENABLED =
+  !!import.meta.env.VITE_LIVEBLOCKS_PUBLIC_KEY ||
+  !!import.meta.env.VITE_LIVEBLOCKS_AUTH_ENDPOINT;
 
 // User info for presence
 export type UserInfo = {
@@ -48,8 +50,11 @@ export type UserMeta = {
 let client: ReturnType<typeof createClient> | null = null;
 
 if (LIVEBLOCKS_ENABLED) {
+  const authEndpoint = import.meta.env.VITE_LIVEBLOCKS_AUTH_ENDPOINT;
   client = createClient({
-    publicApiKey: import.meta.env.VITE_LIVEBLOCKS_PUBLIC_KEY!,
+    ...(authEndpoint
+      ? { authEndpoint }
+      : { publicApiKey: import.meta.env.VITE_LIVEBLOCKS_PUBLIC_KEY! }),
     // Throttle presence updates to reduce network traffic
     throttle: 16, // 60fps
   });
