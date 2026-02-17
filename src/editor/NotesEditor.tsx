@@ -2,7 +2,7 @@
  * NotesEditor — main TipTap editor.
  *
  * Wires up EntityChip + SlashCommand extensions with the entity store.
- * Accepts initial content (from seed or Liveblocks) as TipTap JSON.
+ * Accepts initial content (from seed or PartyKit/Yjs) as TipTap JSON.
  *
  * Includes paragraph-level highlighting: paragraphs containing selected
  * or highlighted entity chips get a tinted background + left border.

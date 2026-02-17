@@ -1,9 +1,9 @@
 /**
  * Entity store using Zustand.
  *
- * This is the local, synchronous store. In production, mutations will be
- * mirrored to Liveblocks Storage (LiveMap<EntityId, Entity>) so that
- * every collaborator sees the same entity graph.
+ * This is the local, synchronous store. When PartyKit is enabled,
+ * mutations are mirrored to a shared Yjs document so that every
+ * collaborator sees the same entity graph.
  *
  * The store is deliberately "dumb" — it holds data and exposes mutations.
  * All derived data (descendants, costs, highlights) is computed via
@@ -53,7 +53,7 @@ interface EntityStore {
   setTrip: (trip: Trip) => void;
   updateTrip: (updates: Partial<Pick<Trip, "name" | "dateRange" | "timezone">>) => void;
 
-  // Hydration (for loading from Liveblocks or seed data)
+  // Hydration (for loading from PartyKit/Yjs or seed data)
   hydrate: (entities: Entity[], trip: Trip) => void;
 }
 

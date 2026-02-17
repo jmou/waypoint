@@ -2,33 +2,29 @@
 
 ## Overview
 
-Waypoint uses [Liveblocks](https://liveblocks.io/) for real-time collaboration features:
+Waypoint uses [PartyKit](https://partykit.io/) for real-time collaboration features:
 
-- **Entity sync**: Places and experiences sync across all connected clients
-- **Document collaboration**: Notes editor supports simultaneous editing
-- **Presence**: See other users' cursors and selections in real-time
-- **Offline support**: Changes queue and sync when reconnected
+- **Entity sync**: Places and experiences sync across all connected clients via Yjs
+- **Document collaboration**: Notes editor supports simultaneous editing via Yjs CRDT
+- **Presence**: See other users' cursors and selections in real-time via Yjs awareness
+- **Persistence**: Data persists across sessions via Cloudflare Durable Objects
 
 ## Quick Start
 
-### 1. Get a Liveblocks API Key
+### 1. Start the PartyKit Server
 
-1. Sign up at [liveblocks.io](https://liveblocks.io/)
-2. Create a new project (free tier is fine)
-3. Copy your **Public API Key** from the dashboard
+```bash
+pnpm dev:partykit
+```
+
+This starts a local PartyKit server on `localhost:1999`.
 
 ### 2. Configure Environment
 
 Create a `.env` file in the project root:
 
 ```bash
-VITE_LIVEBLOCKS_PUBLIC_KEY=pk_dev_your_key_here
-```
-
-Or export it in your shell:
-
-```bash
-export VITE_LIVEBLOCKS_PUBLIC_KEY=pk_dev_your_key_here
+VITE_PARTYKIT_HOST=localhost:1999
 ```
 
 ### 3. Start the App
@@ -37,7 +33,7 @@ export VITE_LIVEBLOCKS_PUBLIC_KEY=pk_dev_your_key_here
 pnpm dev
 ```
 
-Open http://localhost:3000
+Opens at http://localhost:3000.
 
 ### 4. Test Collaboration
 
@@ -57,7 +53,7 @@ Open the app in **two browser windows** side by side:
 
 ## Local-Only Mode
 
-To work without Liveblocks (no collaboration):
+To work without PartyKit (no collaboration):
 
 ```bash
 # Just don't set the env var
@@ -69,59 +65,76 @@ Everything works locally, but:
 - No collaborative editing
 - Data resets on page reload
 
-Perfect for feature development without needing a Liveblocks account.
+Perfect for feature development without running the PartyKit server.
 
 ## Architecture
 
 ### Data Flow
 
 ```
-┌────────────────── Liveblocks Room ──────────────────┐
-│                                                      │
-│  Storage                                             │
-│  ├── entities: LiveMap<EntityId, Entity>            │
-│  └── trip: Trip                                      │
-│                    ↕                                 │
-│  Yjs Document (notes content)                        │
-│                    ↕                                 │
-│  Presence (cursor, selectedIds, user info)           │
-│                                                      │
-└──────────────────────────────────────────────────────┘
-                       ↕
-┌────────────────── Client App ───────────────────────┐
-│                                                      │
-│  Zustand Store (entities, trip)                      │
-│         ↕                                            │
-│  TipTap Editor (notes document)                      │
-│         ↕                                            │
-│  React Components (views)                            │
-│                                                      │
-└──────────────────────────────────────────────────────┘
+┌─────────────── PartyKit Server ────────────────┐
+│                                                  │
+│  y-partykit onConnect                            │
+│  ├── Yjs sync protocol (binary frames)          │
+│  └── Durable Object persistence (snapshots)     │
+│                                                  │
+└──────────────────────────────────────────────────┘
+                       ↕ WebSocket (YPartyKitProvider)
+┌─────────────── Client App ────────────────────┐
+│                                                  │
+│  Y.Doc (shared Yjs document)                     │
+│  ├── Y.XmlFragment "default" → TipTap editor   │
+│  ├── Y.Map "entities" → Zustand entity store    │
+│  └── Y.Map "trip" → Zustand trip store          │
+│                                                  │
+│  Awareness protocol                              │
+│  ├── Cursor position → CollaborationCursor      │
+│  ├── User info (name, color)                     │
+│  └── Selected entity IDs                         │
+│                                                  │
+│  Zustand stores → React components               │
+│                                                  │
+└──────────────────────────────────────────────────┘
 ```
 
-### Storage Sync
+### Why Yjs for Everything
 
-**Local mutation → Liveblocks:**
+All synced data lives in a single Yjs document:
+
+- **Document text** (Y.XmlFragment): TipTap's `@tiptap/extension-collaboration` handles this natively
+- **Entity data** (Y.Map): stored as plain JSON objects, last-write-wins per entity
+- **Trip data** (Y.Map): stored under a single key
+
+This means:
+- One WebSocket connection per client (via `YPartyKitProvider`)
+- One sync protocol (Yjs)
+- The PartyKit server is ~15 lines (just delegates to `y-partykit`)
+- No custom message protocol needed
+
+### Entity Sync
+
+**Local mutation → Remote:**
 
 1. User makes change (e.g., adds place)
 2. Zustand store mutation runs
-3. `useLiveblocksSync` detects change
-4. `syncToLiveblocks` updates LiveMap
-5. Liveblocks broadcasts to other clients
+3. `usePartyKitSync` detects change via `useEffect`
+4. Updates `Y.Map` entries in the Yjs document
+5. `YPartyKitProvider` syncs to PartyKit server
+6. Server broadcasts to other clients via Yjs sync protocol
 
 **Remote change → Local:**
 
 1. Remote client makes change
-2. LiveMap subscription fires
-3. `useLiveblocksSync` extracts entities
+2. Yjs document update arrives via WebSocket
+3. `Y.Map.observeDeep` fires in `usePartyKitSync`
 4. Zustand `hydrate()` updates local store
 5. React components re-render
 
 ### Document Collaboration
 
 1. User types in editor
-2. TipTap updates Yjs document
-3. LiveblocksYjsProvider syncs to Liveblocks
+2. TipTap updates Yjs document (Y.XmlFragment)
+3. `YPartyKitProvider` syncs to PartyKit server
 4. Remote clients receive updates via Yjs
 5. Changes appear in real-time
 
@@ -134,91 +147,67 @@ Perfect for feature development without needing a Liveblocks account.
 ### Presence
 
 **Cursor tracking:**
-- Each user's cursor position broadcast via `updateMyPresence()`
+- TipTap's `CollaborationCursor` extension handles cursor broadcasting
+- Uses Yjs awareness protocol automatically
 - Other users' cursors rendered with name and color
-- Updates throttled to 60fps to reduce network traffic
 
 **Selection broadcasting:**
-- Selected entity IDs included in presence
-- Other clients can see what's selected
-- Useful for "who's looking at what" awareness
+- Selected entity IDs broadcast via `awareness.setLocalStateField`
+- Other clients can observe what's selected
 
 ## Implementation
 
 ### Files
 
-**Core:**
-- `src/liveblocks/config.ts` - Client setup, types, hooks
-- `src/liveblocks/sync.ts` - Bidirectional entity sync
-- `src/liveblocks/Room.tsx` - Room wrapper component
-- `src/editor/CollaborativeNotesEditor.tsx` - Yjs-based editor
+**Server:**
+- `party/main.ts` - PartyKit server (delegates to y-partykit)
+- `partykit.json` - PartyKit configuration
+
+**Client:**
+- `src/partykit/config.ts` - Feature flag, types
+- `src/partykit/sync.ts` - Bidirectional Zustand ↔ Yjs sync
+- `src/partykit/Party.tsx` - Party wrapper component + context
+- `src/partykit/index.ts` - Barrel export
 
 **Modified:**
-- `src/App.tsx` - LiveblocksRoom wrapper, conditional editor
-- `src/styles.css` - Collaborative cursor styles
-
-### Hooks
-
-Liveblocks provides React hooks for accessing collaborative state:
-
-```typescript
-import {
-  useRoom,
-  useMyPresence,
-  useOthers,
-  useStorage,
-  useMutation,
-} from './liveblocks/config';
-
-// Get room instance
-const room = useRoom();
-
-// Get/update own presence
-const [myPresence, updateMyPresence] = useMyPresence();
-
-// Get other users
-const others = useOthers();
-
-// Read storage
-const entities = useStorage((root) => root.entities);
-
-// Mutate storage
-const addPlace = useMutation(({ storage }, place) => {
-  storage.get('entities').set(place.id, place);
-}, []);
-```
+- `src/editor/CollaborativeNotesEditor.tsx` - Uses PartyKit context for Yjs provider
+- `src/App.tsx` - Party wrapper, conditional editor
 
 ### Sync Logic
 
-Entity sync is handled by `useLiveblocksSync()` hook in `src/liveblocks/sync.ts`:
+Entity sync is handled by `usePartyKitSync()` hook in `src/partykit/sync.ts`:
+
+**On mount (hydration):**
+```typescript
+const yEntities = yDoc.getMap("entities");
+
+// If Yjs already has data (from persistence or another client), hydrate Zustand
+if (yEntities.size > 0) {
+  const entityList = [];
+  yEntities.forEach((val) => entityList.push(val));
+  hydrate(entityList, tripData);
+}
+```
 
 **On local change:**
 ```typescript
 useEffect(() => {
-  if (!room) return;
-
-  const prevState = previousStateRef.current;
-  const currentState = entities;
-
-  room.batch(() => {
-    // Detect adds, updates, deletes
-    // Update LiveMap accordingly
+  // Diff against previous state
+  // Update Y.Map entries (add/update/delete)
+  yDoc.transact(() => {
+    for (const entity of toAdd) yEntities.set(entity.id, entity);
+    for (const id of toDelete) yEntities.delete(id);
   });
-
-  previousStateRef.current = currentState;
-}, [entities, room]);
+}, [entities]);
 ```
 
 **On remote change:**
 ```typescript
-useEffect(() => {
-  if (!room) return;
-
-  return room.subscribe(storage.get('entities'), (liveEntities) => {
-    const remoteEntities = extractEntitiesFromLiveMap(liveEntities);
-    hydrate(remoteEntities, trip);
-  });
-}, [room, hydrate]);
+yEntities.observeDeep(() => {
+  const entityList = [];
+  yEntities.forEach((val) => entityList.push(val));
+  hydrate(entityList, trip);
+});
 ```
 
 ## Room Management
@@ -229,44 +218,152 @@ The app uses a hardcoded room ID: `waypoint-kyoto`
 
 To support multiple trips:
 1. Extract trip ID from URL or database
-2. Pass dynamic room ID to `<LiveblocksRoom roomId={tripId}>`
+2. Pass dynamic room ID to `<Party roomId={tripId}>`
 
 ### Initialization
 
 On first connection to a room:
-- First client initializes storage with seed data
-- Subsequent clients load from existing storage
-- Storage persists in Liveblocks (doesn't reset on reload)
-
-To reset a room, delete it via the Liveblocks dashboard.
+- If Yjs document is empty, the first client seeds it with `SEED_ENTITIES` and `SEED_TRIP`
+- Subsequent clients receive the existing state via Yjs sync
+- Data persists via `y-partykit` snapshot persistence
 
 ### User Info
 
-Currently: Random names and colors generated on connect
+Currently: Random names and colors generated on connect.
 
 For production:
 1. Integrate with authentication system
-2. Pass real user data to `RoomProvider` initialPresence
-3. Update `LiveblocksRoom.tsx` to get user from auth context
+2. Pass real user data to awareness via `provider.awareness.setLocalStateField`
 
-## Presence Details
+## Conflict Resolution
 
-Each user has:
-- **Name**: Random name (Alex, Sam, Jordan, etc.)
-- **Color**: Random color from palette (for cursor)
-- **Cursor position**: Updated on every selection change
-- **Selected IDs**: Array of currently selected entity IDs
+### Entity Mutations
 
-Cursor position format:
+**Strategy:** Last-write-wins (per entity)
+
+When two users edit the same entity simultaneously:
+- Both changes propagate via Y.Map
+- Last update received wins
+- Simple but effective for travel planning
+
+### Document Edits
+
+**Strategy:** Yjs CRDT
+
+When two users edit the same paragraph:
+- Yjs merges changes automatically
+- No conflicts, no lost data
+- Preserves both users' intent
+
+## Deployment
+
+### Deploy PartyKit Server
+
+```bash
+pnpm partykit deploy
+```
+
+This deploys to `waypoint.your-username.partykit.dev`.
+
+### Configure Production
+
+Set the environment variable for the deployed host:
+
+```bash
+VITE_PARTYKIT_HOST=waypoint.your-username.partykit.dev
+```
+
+### Authentication (Production)
+
+For production, add authentication in the PartyKit server's `onConnect`:
+
 ```typescript
-{
-  cursor: {
-    from: number,  // Selection start position
-    to: number,    // Selection end position
-  },
-  selectedIds: string[],
+onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
+  // Verify auth token from ctx.request headers
+  const token = new URL(ctx.request.url).searchParams.get("token");
+  if (!isValidToken(token)) {
+    conn.close(4001, "Unauthorized");
+    return;
+  }
+  return onConnect(conn, this.room, { persist: { mode: "snapshot" } });
 }
 ```
+
+## Testing
+
+### Manual Testing
+
+```bash
+# Terminal 1: Start PartyKit server
+pnpm dev:partykit
+
+# Terminal 2: Start Vite dev server
+VITE_PARTYKIT_HOST=localhost:1999 pnpm dev
+```
+
+Open multiple browser windows to test:
+- Entity creation/update/delete syncs
+- Typing appears in real-time
+- Cursors move as users type
+- Selection changes broadcast
+
+### Automated Testing
+
+E2E tests for collaboration in `e2e/phase6.spec.ts`:
+
+**Scenarios tested:**
+- Entity sync (create/update/delete/reparent)
+- Document collaboration (typing, simultaneous edits)
+- Presence and cursors
+- Selection broadcasting
+- Multi-user workflows
+- Connection and recovery
+
+Run with:
+```bash
+VITE_PARTYKIT_HOST=localhost:1999 pnpm test:e2e:phase6
+```
+
+**Local-only tests** in `e2e/phase6-basic.spec.ts`:
+- Verify app works without PartyKit
+- No server required
+
+## Troubleshooting
+
+### "Connecting to room..." forever
+
+**Causes:**
+- PartyKit server not running
+- Wrong `VITE_PARTYKIT_HOST` value
+- Network connection issues
+
+**Solutions:**
+- Run `pnpm dev:partykit` in a separate terminal
+- Verify `.env` has correct host (`localhost:1999` for local dev)
+- Check browser console for WebSocket errors
+
+### Changes not syncing
+
+**Causes:**
+- Clients connected to different rooms
+- Network latency
+- Yjs document not initialized
+
+**Solutions:**
+- Wait 1-2 seconds for sync
+- Check all clients have same room ID
+- Verify PartyKit server is running
+
+### Cursor not showing
+
+**Causes:**
+- Not clicking in editor
+- Awareness not syncing
+
+**Solutions:**
+- Click in notes editor to set position
+- Wait ~1 second for awareness to sync
+- Check if `.collaboration-cursor__caret` exists in DevTools
 
 ## Collaborative Cursors
 
@@ -307,226 +404,10 @@ Defined in `src/styles.css`:
 }
 ```
 
-## Testing
-
-### Manual Testing
-
-```bash
-export VITE_LIVEBLOCKS_PUBLIC_KEY=pk_dev_xxx
-pnpm dev
-```
-
-Open multiple browser windows to test:
-- Entity creation/update/delete syncs
-- Typing appears in real-time
-- Cursors move as users type
-- Selection changes broadcast
-
-### Automated Testing
-
-E2E tests for collaboration in `e2e/phase6.spec.ts`:
-
-**Scenarios tested:**
-- Entity sync (create/update/delete/reparent)
-- Document collaboration (typing, simultaneous edits)
-- Presence and cursors
-- Selection broadcasting
-- Multi-user workflows
-- Connection and recovery
-
-Run with:
-```bash
-VITE_LIVEBLOCKS_PUBLIC_KEY=pk_dev_xxx pnpm test:e2e:phase6
-```
-
-**Local-only tests** in `e2e/phase6-basic.spec.ts`:
-- Verify app works without Liveblocks
-- No API key required
-
-## Conflict Resolution
-
-### Entity Mutations
-
-**Strategy:** Last-write-wins
-
-When two users edit the same entity simultaneously:
-- Both changes propagate to Liveblocks
-- Last update received wins
-- Simple but effective for most use cases
-
-**Why not CRDTs for entities?**
-- Entity data is small and atomic
-- Conflicts are rare in travel planning
-- Last-write-wins is intuitive
-- CRDTs add complexity
-
-### Document Edits
-
-**Strategy:** Yjs CRDT
-
-When two users edit the same paragraph:
-- Yjs merges changes automatically
-- No conflicts, no lost data
-- Preserves both users' intent
-- Industry-proven for text editing
-
-## Performance
-
-### Optimizations
-
-**Presence throttling:**
-- Updates throttled to 16ms (60fps)
-- Reduces network traffic
-- Maintains smooth cursor movement
-
-**Shallow comparison:**
-- Entity sync uses JSON comparison
-- Efficient for small entity maps (<10,000 entities)
-- Avoids unnecessary broadcasts
-
-**CRDT efficiency:**
-- Yjs provides optimal conflict-free merging
-- Only transmits changes, not full document
-- Handles large documents well
-
-### Limits
-
-For good performance:
-- Keep entity count < 10,000
-- Keep document size < 1MB
-- Monitor Liveblocks dashboard for usage
-
-## Troubleshooting
-
-### "Connecting to room..." forever
-
-**Causes:**
-- API key incorrect
-- Network connection issues
-- Liveblocks service down
-
-**Solutions:**
-- Verify API key in `.env`
-- Check browser console for errors
-- Check Liveblocks dashboard status
-
-### Changes not syncing
-
-**Causes:**
-- Clients in different rooms
-- Network latency
-- Storage not initialized
-
-**Solutions:**
-- Wait 1-2 seconds for sync
-- Check all clients have same room ID
-- Verify Liveblocks dashboard shows connections
-
-### Cursor not showing
-
-**Causes:**
-- Not clicking in editor
-- Presence not syncing
-
-**Solutions:**
-- Click in notes editor to set position
-- Wait ~1 second for presence to sync
-- Check if `.collaboration-cursor__caret` exists in DevTools
-
-### Tests failing
-
-**Cause:** No API key set
-
-**Solution:**
-```bash
-VITE_LIVEBLOCKS_PUBLIC_KEY=pk_dev_xxx pnpm test:e2e:phase6
-```
-
-Phase 6 tests are skipped if env var not set.
-
-## Production Considerations
-
-### Authentication
-
-Current setup uses **public API key** (dev only).
-
-For production:
-1. Use Liveblocks authentication system
-2. Generate access tokens server-side
-3. Use `authEndpoint` instead of `publicApiKey`
-4. Implement user permissions
-
-See: https://liveblocks.io/docs/authentication
-
-### Rate Limits
-
-Free tier limits:
-- 100 concurrent connections
-- 100 MB storage
-- 100 GB bandwidth/month
-
-Monitor usage in Liveblocks dashboard. Upgrade as needed.
-
-### Monitoring
-
-Track:
-- Sync latency
-- Bandwidth usage
-- Connection drops
-- Storage size
-
-Add instrumentation to `sync.ts` for production monitoring.
-
-### Access Control
-
-Consider implementing:
-- Room permissions (read/write)
-- User roles (admin/editor/viewer)
-- Entity-level permissions
-
-## Known Issues
-
-### TypeScript Types
-
-Liveblocks requires `LsonObject` which has index signatures. Our entity types don't match exactly, so we use `any` in places:
-
-```typescript
-type Storage = {
-  entities: LiveMap<string, any>;  // Instead of LiveObject<Entity>
-  trip: any;  // Instead of LiveObject<Trip>
-};
-```
-
-Runtime behavior is correct. This is a known limitation of Liveblocks type system.
-
-### Initial Storage
-
-First client to join a room initializes storage with seed data. This is simple for demo purposes.
-
-For production:
-- Initialize storage server-side when creating a trip
-- Use Liveblocks REST API to pre-populate rooms
-
-### Cursor Jitter
-
-Cursor position may occasionally jitter due to:
-- Browser layout shifts
-- Scroll position changes
-- Editor DOM updates
-
-This is a known issue with browser-based collaborative cursors and is acceptable for most use cases.
-
-## Future Enhancements
-
-1. **Awareness indicators** - Show which view other users are on
-2. **Conflict UI** - Toast when concurrent edits happen
-3. **Undo/Redo with Liveblocks** - Use Liveblocks history API
-4. **Performance monitoring** - Track sync latency and bandwidth
-5. **Access control** - Room permissions and user roles
-
 ## References
 
-- [Liveblocks Documentation](https://liveblocks.io/docs)
+- [PartyKit Documentation](https://docs.partykit.io/)
+- [y-partykit](https://github.com/partykit/partykit/tree/main/packages/y-partykit)
 - [TipTap Collaboration](https://tiptap.dev/docs/editor/extensions/functionality/collaboration)
 - [Yjs Documentation](https://docs.yjs.dev/)
 - [CRDT Explained](https://crdt.tech/)

@@ -97,7 +97,7 @@ Every interaction should work with the Kyoto trip graph.
 - **Zustand 5** - State management
 - **TipTap** - Rich text editor (ProseMirror wrapper)
 - **Leaflet** - Maps
-- **Liveblocks** - Real-time collaboration
+- **PartyKit** - Real-time collaboration (WebSocket server on Cloudflare Workers)
 - **Yjs** - CRDT for collaborative editing
 - **Playwright** - E2E testing
 
@@ -109,15 +109,15 @@ Consider carefully before adding new dependencies:
 - Keep bundle size reasonable
 - Check for TypeScript support
 
-## No Backend
+## Backend
 
-Everything runs client-side. Liveblocks provides sync and persistence.
+PartyKit provides the real-time sync backend (Cloudflare Workers + Durable Objects).
 
 **Implications:**
 - No server-side validation
-- Authentication handled by Liveblocks
-- Storage limits determined by Liveblocks tier
-- Data resets on reload when Liveblocks disabled
+- Authentication can be handled in the PartyKit server's `onConnect`
+- Data persists via Yjs snapshots in Cloudflare Durable Objects
+- Data resets on reload when PartyKit disabled
 
 ## File Organization
 
@@ -125,7 +125,7 @@ Everything runs client-side. Liveblocks provides sync and persistence.
 src/
 ├── entities/           # Core domain logic (pure functions)
 ├── editor/            # TipTap extensions and editor components
-├── liveblocks/        # Collaboration infrastructure
+├── partykit/          # Collaboration infrastructure
 ├── components/        # Reusable UI components
 │   └── tree/         # Tree view components
 ├── App.tsx           # Root component and routing
@@ -254,13 +254,12 @@ const useEntityStore = create<EntityStore>()(
 
 Install React DevTools browser extension for component inspection.
 
-### Liveblocks Inspector
+### PartyKit Dashboard
 
-Use Liveblocks dashboard to inspect:
-- Active connections
-- Storage state
-- Presence data
-- Bandwidth usage
+Use `partykit dev` logs and browser DevTools to inspect:
+- WebSocket connections
+- Yjs document state
+- Awareness/presence data
 
 ### Playwright Debug Mode
 

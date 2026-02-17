@@ -11,7 +11,7 @@
 - **VIEWS.md** - All UI views (Notes, Places, Experiences, Schedule, Expenses), layout, visual states, interaction patterns
 - **MAP.md** - Map view with MapLibre GL JS, pin rendering, visual states, unlocated footer, pan-to-fit, testing
 - **TESTING.md** - E2E testing with Playwright, data attributes, test patterns, troubleshooting
-- **COLLABORATION.md** - Liveblocks setup, real-time sync, collaborative editing, presence/cursors, production deployment
+- **COLLABORATION.md** - PartyKit setup, real-time sync, collaborative editing, presence/cursors, deployment
 - **DEVELOPMENT.md** - Code style, component patterns, testing approach, file organization, common pitfalls
 
 ## Testing Documentation (e2e/)

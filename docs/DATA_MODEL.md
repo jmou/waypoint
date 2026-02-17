@@ -175,7 +175,7 @@ All traversal and aggregation is computed via pure functions in `src/entities/he
 **Why not store derived data?**
 - Keeps store simple
 - Avoids stale data bugs
-- Makes sync easier (Liveblocks integration)
+- Makes sync easier (PartyKit/Yjs integration)
 - React re-renders efficiently with memoization
 
 ## Mutations
@@ -197,7 +197,7 @@ store.reparent("p-shibuya", "p-tokyo"); // Move Shibuya under Tokyo
 ```
 
 **Design rationale:**
-- Each mutation maps to a single Liveblocks Storage operation
+- Each mutation maps to a single PartyKit/Yjs Storage operation
 - Atomic operations prevent partial state updates
 - Easy to sync across clients
 - Simple to implement undo/redo
@@ -235,7 +235,7 @@ All traversal and aggregation is computed via pure functions rather than stored:
 **Benefits:**
 - Keeps store simple and minimal
 - Avoids stale derived state bugs
-- Makes sync easier (Liveblocks integration)
+- Makes sync easier (PartyKit/Yjs integration)
 - React re-renders efficiently with memoization
 
 **Pattern:**
@@ -253,7 +253,7 @@ Each function is pure and deterministic - same inputs always produce same output
 Every store mutation is a single atomic operation:
 
 **Benefits:**
-- Each mutation maps 1:1 to a Liveblocks Storage operation
+- Each mutation maps 1:1 to a PartyKit/Yjs Storage operation
 - Atomic operations prevent partial state updates
 - Easy to sync across clients
 - Simple to implement undo/redo

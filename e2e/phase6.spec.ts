@@ -1,7 +1,7 @@
 import { test, expect, type Page, type Browser } from '@playwright/test';
 
 /**
- * Phase 6 E2E Tests: Liveblocks Collaboration
+ * Phase 6 E2E Tests: PartyKit Collaboration
  *
  * Coverage:
  * - Entity sync (create/update/delete in one client, verify in another)
@@ -10,14 +10,14 @@ import { test, expect, type Page, type Browser } from '@playwright/test';
  * - Selection broadcasting (selected entities shown across clients)
  * - Multi-user workflows (simultaneous editing, conflict resolution)
  *
- * Note: These tests require VITE_LIVEBLOCKS_PUBLIC_KEY to be set.
+ * Note: These tests require VITE_PARTYKIT_HOST to be set.
  * If not set, tests will be skipped.
  */
 
-const LIVEBLOCKS_ENABLED = !!process.env.VITE_LIVEBLOCKS_PUBLIC_KEY;
+const PARTYKIT_ENABLED = !!process.env.VITE_PARTYKIT_HOST;
 
-test.describe('Phase 6: Liveblocks Collaboration', () => {
-  test.skip(!LIVEBLOCKS_ENABLED, 'Liveblocks not enabled (VITE_LIVEBLOCKS_PUBLIC_KEY not set)');
+test.describe('Phase 6: PartyKit Collaboration', () => {
+  test.skip(!PARTYKIT_ENABLED, 'PartyKit not enabled (VITE_PARTYKIT_HOST not set)');
 
   test.describe('Entity Sync', () => {
     test('should sync entity creation across clients', async ({ browser }) => {
@@ -620,7 +620,7 @@ test.describe('Phase 6: Liveblocks Collaboration', () => {
         await page2.waitForSelector('[data-expenses-view]');
 
         // Both try to edit the same expense amount
-        // Client 1 should win or they should merge (last-write-wins in Liveblocks)
+        // Client 1 should win or they should merge (last-write-wins in PartyKit)
         const amount1 = page1.locator('[data-expense-amount="e-fox-udon"]');
         const amount2 = page2.locator('[data-expense-amount="e-fox-udon"]');
 
@@ -726,7 +726,7 @@ test.describe('Phase 6: Liveblocks Collaboration', () => {
         await page.click('[data-pane="right"] [data-tab="places"]');
         await page.waitForSelector('[data-tree-view="places"]');
 
-        // The added place should still be there (persisted in Liveblocks)
+        // The added place should still be there (persisted in PartyKit)
         const view = page.locator('[data-tree-view="places"]');
         await expect(view).toContainText('Before Reload', { timeout: 5000 });
       } finally {
