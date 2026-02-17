@@ -21,8 +21,8 @@ import { PlacesView } from "./components/PlacesView";
 import { ExperiencesView } from "./components/ExperiencesView";
 import { ScheduleView } from "./components/ScheduleView";
 import { ExpensesView } from "./components/ExpensesView";
-import { LiveblocksRoom } from "./liveblocks/Room";
-import { LIVEBLOCKS_ENABLED } from "./liveblocks/config";
+import { Party } from "./partykit/Party";
+import { PARTYKIT_ENABLED } from "./partykit/config";
 import "./styles.css";
 
 // Lazy load MapView to avoid Leaflet initialization issues in test environments
@@ -42,13 +42,13 @@ export default function App() {
   const [rightTab, setRightTab] = useState<RightTab>("notes");
   const [ready, setReady] = useState(false);
 
-  // Hydrate store on mount (only if Liveblocks is disabled)
+  // Hydrate store on mount (only if PartyKit is disabled)
   useEffect(() => {
-    if (!LIVEBLOCKS_ENABLED) {
+    if (!PARTYKIT_ENABLED) {
       hydrate(SEED_ENTITIES, SEED_TRIP);
       setReady(true);
     } else {
-      // When using Liveblocks, sync handles hydration
+      // When using PartyKit, sync handles hydration
       setReady(true);
     }
   }, [hydrate]);
@@ -74,9 +74,9 @@ export default function App() {
     </NavigationProvider>
   );
 
-  // Wrap with LiveblocksRoom if enabled
-  if (LIVEBLOCKS_ENABLED) {
-    return <LiveblocksRoom roomId="waypoint-kyoto">{content}</LiveblocksRoom>;
+  // Wrap with Party if enabled
+  if (PARTYKIT_ENABLED) {
+    return <Party roomId="waypoint-kyoto">{content}</Party>;
   }
 
   return content;
@@ -155,7 +155,7 @@ function AppContent({
             />
             <div className="pane__content">
               {rightTab === "notes" && (
-                LIVEBLOCKS_ENABLED ? (
+                PARTYKIT_ENABLED ? (
                   <CollaborativeNotesEditor
                     initialContent={SEED_DOCUMENT}
                     onNavigate={handleNavigate}

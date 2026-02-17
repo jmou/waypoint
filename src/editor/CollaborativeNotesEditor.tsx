@@ -1,13 +1,13 @@
 /**
- * CollaborativeNotesEditor — TipTap editor with Liveblocks collaboration.
+ * CollaborativeNotesEditor — TipTap editor with PartyKit collaboration.
  *
- * When Liveblocks is enabled, this wraps the NotesEditor with:
- * - Yjs document sync via Liveblocks provider
+ * When PartyKit is enabled, this wraps the NotesEditor with:
+ * - Yjs document sync via YPartyKitProvider
  * - Collaborative cursors showing other users' positions
  * - Awareness state for presence
  */
 
-import React, { useCallback, useRef, useEffect, useState } from "react";
+import React, { useCallback, useRef, useEffect } from "react";
 import { useEditor, EditorContent, Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Collaboration from "@tiptap/extension-collaboration";
@@ -15,9 +15,8 @@ import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { Extension } from "@tiptap/core";
-import * as Y from "yjs";
-import { LiveblocksYjsProvider } from "@liveblocks/yjs";
-import { useRoom, useSelf, useUpdateMyPresence, LIVEBLOCKS_ENABLED } from "../liveblocks/config";
+import { useParty } from "../partykit/Party";
+import { PARTYKIT_ENABLED } from "../partykit/config";
 import { EntityChipExtension } from "./ChipExtension";
 import { SlashCommandExtension } from "./SlashCommand";
 import { useEntityStore } from "../entities/store";
@@ -109,24 +108,11 @@ export function CollaborativeNotesEditor({
   const selected = useSelectionStore((s) => s.selected);
   const editorRef = useRef<Editor | null>(null);
 
-  const room = LIVEBLOCKS_ENABLED ? useRoom() : null;
-  const userInfo = LIVEBLOCKS_ENABLED ? useSelf((me: any) => me.info) : null;
-  const updateMyPresence = LIVEBLOCKS_ENABLED ? useUpdateMyPresence() : null;
-
-  const [yDoc] = useState(() => new Y.Doc());
-  const [provider, setProvider] = useState<LiveblocksYjsProvider | null>(null);
-
-  // Initialize Liveblocks Yjs provider
-  useEffect(() => {
-    if (!LIVEBLOCKS_ENABLED || !room) return;
-
-    const yjsProvider = new LiveblocksYjsProvider(room as any, yDoc);
-    setProvider(yjsProvider);
-
-    return () => {
-      yjsProvider.destroy();
-    };
-  }, [room, yDoc]);
+  // Get PartyKit context (provider, yDoc, userInfo)
+  const partyCtx = PARTYKIT_ENABLED ? useParty() : null;
+  const provider = partyCtx?.provider ?? null;
+  const yDoc = partyCtx?.yDoc ?? null;
+  const userInfo = partyCtx?.userInfo ?? null;
 
   const getEntities = useCallback(() => entities, [entities]);
 
@@ -161,8 +147,8 @@ export function CollaborativeNotesEditor({
       horizontalRule: false,
       bulletList: false,
       orderedList: false,
-      // Disable history when using collaboration
-      history: LIVEBLOCKS_ENABLED ? false : undefined,
+      // Disable history when using collaboration (Yjs handles undo/redo)
+      history: PARTYKIT_ENABLED ? false : undefined,
     }),
     EntityChipExtension.configure({ onNavigate }),
     SlashCommandExtension.configure({
@@ -173,8 +159,8 @@ export function CollaborativeNotesEditor({
     createParagraphHighlightExtension(),
   ];
 
-  // Add collaboration extensions if Liveblocks is enabled
-  if (LIVEBLOCKS_ENABLED && provider) {
+  // Add collaboration extensions if PartyKit is enabled
+  if (PARTYKIT_ENABLED && provider && yDoc) {
     extensions.push(
       Collaboration.configure({
         document: yDoc,
@@ -192,7 +178,7 @@ export function CollaborativeNotesEditor({
   const editor = useEditor({
     extensions,
     content:
-      !LIVEBLOCKS_ENABLED || !provider
+      !PARTYKIT_ENABLED || !provider
         ? initialContent || "<p>Start planning... type <code>/</code> to mention entities.</p>"
         : undefined,
     editorProps: {
@@ -201,38 +187,17 @@ export function CollaborativeNotesEditor({
         spellcheck: "false",
       },
     },
-  }, [provider, LIVEBLOCKS_ENABLED]);
+  }, [provider, PARTYKIT_ENABLED]);
 
   useEffect(() => {
     editorRef.current = editor;
   }, [editor]);
 
-  // Track cursor position for presence
+  // Broadcast selection via awareness
   useEffect(() => {
-    if (!editor || !updateMyPresence) return;
-
-    const updateCursor = () => {
-      const { from } = editor.state.selection;
-      const coords = editor.view.coordsAtPos(from);
-      const editorRect = editor.view.dom.getBoundingClientRect();
-
-      updateMyPresence({
-        cursor: {
-          x: coords.left,
-          y: coords.top,
-          anchorX: editorRect.left,
-          anchorY: editorRect.top,
-        },
-      });
-    };
-
-    // Update on selection change
-    editor.on("selectionUpdate", updateCursor);
-
-    return () => {
-      editor.off("selectionUpdate", updateCursor);
-    };
-  }, [editor, updateMyPresence]);
+    if (!provider) return;
+    provider.awareness.setLocalStateField("selectedIds", Array.from(selected));
+  }, [selected, provider]);
 
   // Sync selection + highlighting state into the ProseMirror plugin
   useEffect(() => {

@@ -20,7 +20,7 @@ src/
 ├── entities/          # Core data model
 │   ├── types.ts       # Place, Experience, Trip types + factory functions
 │   ├── helpers.ts     # Pure traversal: descendants, costs, highlighting
-│   ├── store.ts       # Zustand store (local-first, Liveblocks-syncable)
+│   ├── store.ts       # Zustand store (local-first, PartyKit-syncable)
 │   ├── selection.ts   # Selection store (click/ctrl-click/day-click)
 │   └── seed.ts        # Kyoto trip seed data + TipTap document
 │
@@ -29,10 +29,10 @@ src/
 │   ├── SlashCommand.tsx     # /-command for linking/creating entities
 │   └── NotesEditor.tsx      # Editor component wiring
 │
-├── liveblocks/        # Real-time collaboration
-│   ├── config.ts      # Client setup, types, room context
-│   ├── sync.ts        # Bidirectional entity sync
-│   └── Room.tsx       # Room wrapper component
+├── partykit/          # Real-time collaboration
+│   ├── config.ts      # Feature flag, types
+│   ├── sync.ts        # Bidirectional Zustand ↔ Yjs sync
+│   └── Party.tsx      # Party wrapper component + context
 │
 ├── App.tsx            # Root: two-pane layout, tab routing, hydration
 ├── styles.css         # Design tokens + all component styles
@@ -50,7 +50,7 @@ src/
 - **Schedule view**: Chronological list, drag-to-reschedule, inline time editing, timezone picker.
 - **Expenses view**: Filtered expense list, inline amount editing, multi-currency totals.
 - **Map view**: MapLibre GL JS integration with entity pins, selection/highlight states, unlocated footer.
-- **Real-time collaboration**: Liveblocks integration for entity sync, collaborative editing, and presence.
+- **Real-time collaboration**: PartyKit integration for entity sync, collaborative editing, and presence via Yjs.
 
 ## Documentation
 
@@ -62,11 +62,11 @@ src/
 - [docs/VIEWS.md](./docs/VIEWS.md) - UI views and interactions
 - [docs/MAP.md](./docs/MAP.md) - Map view with MapLibre GL JS
 - [docs/TESTING.md](./docs/TESTING.md) - E2E testing with Playwright
-- [docs/COLLABORATION.md](./docs/COLLABORATION.md) - Real-time features with Liveblocks
+- [docs/COLLABORATION.md](./docs/COLLABORATION.md) - Real-time features with PartyKit
 
 ## Design decisions
 
 - **Entities not notes are the source of truth.** Notes reference entities via chips. Entity data lives in the store, not in the document.
 - **Selection ≠ highlighting.** Selected = explicitly clicked. Highlighted = derived (children, associated places/experiences). Different visual treatment.
 - **Chips are atoms.** TipTap treats them as single inline units. Only the `entityId` is stored in the document; all display data comes from the live store.
-- **Local-first.** Zustand store works offline. Liveblocks syncs when connected. No hard dependency on network.
+- **Local-first.** Zustand store works offline. PartyKit syncs when connected. No hard dependency on network.

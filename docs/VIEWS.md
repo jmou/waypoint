@@ -40,7 +40,7 @@ The core authoring surface. See `docs/EDITOR.md` for full details.
 - Entity chips inline in prose
 - Slash commands for entity search/creation
 - Paragraph-level highlighting
-- Collaborative cursors (when Liveblocks enabled)
+- Collaborative cursors (when PartyKit enabled)
 
 **Typography:**
 - Prose: Georgia serif, 14px

@@ -42,7 +42,7 @@ pnpm run test:e2e:phase1  # Notes and chips
 pnpm run test:e2e:phase2  # Tree views
 pnpm run test:e2e:phase3  # Schedule
 pnpm run test:e2e:phase4  # Expenses
-pnpm run test:e2e:phase6  # Liveblocks (requires API key)
+pnpm run test:e2e:phase6  # PartyKit collaboration (requires VITE_PARTYKIT_HOST)
 ```
 
 ### Debug Mode
@@ -94,7 +94,7 @@ Tests are organized by implementation phase:
 - Totals (highlighted subtotal, grand total)
 - Multi-currency display
 
-**Phase 6: Liveblocks** (`e2e/phase6.spec.ts`, `e2e/phase6-basic.spec.ts`)
+**Phase 6: PartyKit Collaboration** (`e2e/phase6.spec.ts`, `e2e/phase6-basic.spec.ts`)
 - Entity sync across clients
 - Document collaboration
 - Presence and cursors

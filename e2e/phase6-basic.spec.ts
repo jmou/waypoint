@@ -3,12 +3,12 @@ import { test, expect } from '@playwright/test';
 /**
  * Phase 6 Basic Tests
  *
- * These tests run regardless of whether Liveblocks is enabled,
+ * These tests run regardless of whether PartyKit is enabled,
  * validating that the app still works in local-only mode.
  */
 
 test.describe('Phase 6: Basic Functionality (Local Mode)', () => {
-  test('should load without Liveblocks', async ({ page }) => {
+  test('should load without PartyKit', async ({ page }) => {
     await page.goto('/');
 
     // App should load successfully
@@ -100,18 +100,18 @@ test.describe('Phase 6: Basic Functionality (Local Mode)', () => {
   });
 });
 
-test.describe('Phase 6: Liveblocks Detection', () => {
-  test('should detect Liveblocks configuration', async ({ page }) => {
+test.describe('Phase 6: PartyKit Detection', () => {
+  test('should detect PartyKit configuration', async ({ page }) => {
     await page.goto('/');
     await page.waitForSelector('[data-entity-chip]', { timeout: 5000 });
 
-    // Check if LIVEBLOCKS_ENABLED is set by looking for collaboration features
-    // If Liveblocks is enabled, there should be a room connection
+    // Check if PARTYKIT_ENABLED is set by looking for collaboration features
+    // If PartyKit is enabled, there should be a room connection
     // This is just a basic smoke test to verify the flag works
 
-    const hasLiveblocks = !!process.env.VITE_LIVEBLOCKS_PUBLIC_KEY;
+    const hasPartyKit = !!process.env.VITE_PARTYKIT_HOST;
 
-    if (hasLiveblocks) {
+    if (hasPartyKit) {
       // Should not throw errors
       await page.waitForTimeout(2000);
 
@@ -125,7 +125,7 @@ test.describe('Phase 6: Liveblocks Detection', () => {
 
       // Should have no critical errors
       const criticalErrors = errors.filter(e =>
-        e.includes('Liveblocks') || e.includes('authentication')
+        e.includes('PartyKit') || e.includes('authentication')
       );
       expect(criticalErrors.length).toBe(0);
     }

@@ -1,8 +1,7 @@
 /// <reference types="vite/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_LIVEBLOCKS_PUBLIC_KEY?: string;
-  readonly VITE_LIVEBLOCKS_AUTH_ENDPOINT?: string;
+  readonly VITE_PARTYKIT_HOST?: string;
 }
 
 interface ImportMeta {

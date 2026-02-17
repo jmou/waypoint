@@ -228,7 +228,7 @@ This helps users see which blocks are relevant to their current selection.
 
 ## Collaborative Editing
 
-See `docs/COLLABORATION.md` for details on real-time collaborative editing with Liveblocks and Yjs.
+See `docs/COLLABORATION.md` for details on real-time collaborative editing with PartyKit and Yjs.
 
 Key points:
 - Yjs provides CRDT for conflict-free merging
